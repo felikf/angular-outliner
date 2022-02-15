@@ -6,7 +6,8 @@ module.exports = {
   entry: {
     content: path.join(__dirname, srcDir + 'content.ts'),
     tracer: path.join(__dirname, srcDir + 'tracer/index.ts'),
-    popup: path.join(__dirname, srcDir + 'popup.ts')
+    popup: path.join(__dirname, srcDir + 'popup.ts'),
+    devtools: path.join(__dirname, srcDir + 'devtools.ts'),
   },
   output: {
     path: path.join(__dirname, '../dist/js'),

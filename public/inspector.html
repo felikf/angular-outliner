@@ -1,0 +1,221 @@
+<html>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport'
+        content='width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0'>
+  <meta http-equiv='X-UA-Compatible' content='ie=edge'>
+  <title>Inspector</title>
+  <script src="js/popup.js"></script>
+  <link rel="stylesheet" href="slider.css">
+
+  <style>
+      body {
+          background-color: white;
+      }
+
+      h1, h2, h3, h4, h5 {
+          margin: 0;
+      }
+
+      fieldset {
+          margin-bottom: 24px;
+      }
+
+      body {
+          margin: 0;
+          min-height: 60px;
+          width: 480px;
+          font-family: 'Segoe UI', 'Lucida Grande', Tahoma, sans-serif;
+          font-size: 14px;
+          padding: 16px;
+      }
+
+      h4 {
+          margin-bottom: 8px;
+      }
+
+      .container {
+          display: none;
+      }
+
+      .description {
+          margin: 0 0 10px 0;
+          padding: 0;
+          font-size: 12px;
+      }
+
+
+      .actions {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+      }
+
+      #error {
+          padding-top: 20px;
+          color: #e24646;
+          font-size: 13px;
+      }
+
+      #error:empty {
+          display: none;
+      }
+
+      #prefixes {
+          background: #f3d1dc;
+          display: flex;
+          flex-direction: column;
+      }
+      .title-wrapper__title {
+          margin-top: 0;
+      }
+
+      .componentFilter {
+          margin-bottom: 12px;
+      }
+
+      .componentFilter span {
+          margin-right: 12px;
+      }
+
+      .link {
+          text-decoration: underline;
+          cursor: pointer;
+      }
+
+      /*noinspection ALL*/
+      .prefixes__pref {
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+      }
+
+      /* checkbox */
+      .prefixes__pref *:nth-child(1) {
+          min-width: 5%;
+      }
+
+      /* prefix name */
+      .prefixes__pref *:nth-child(2) {
+          min-width: 80%;
+      }
+
+      /* input */
+      .prefixes__pref *:nth-child(3) {
+          min-width: 15%;
+      }
+
+      /*noinspection ALL*/
+      .components__pref {
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+      }
+
+      /* checkbox */
+      .components__pref *:nth-child(1) {
+          min-width: 5%;
+      }
+
+      /* component name */
+      .components__pref *:nth-child(2) {
+          min-width: 65%;
+      }
+
+      /* change detection */
+      .components__pref *:nth-child(3) {
+          min-width: 15%;
+      }
+
+      /* input */
+      .components__pref *:nth-child(4) {
+          min-width: 15%;
+      }
+
+      .bold {
+          font-weight: 600;
+      }
+  </style>
+
+</head>
+<body>
+
+<div class="title-wrapper">
+  <h4 class="title-wrapper__title">Angular component debugger</h4>
+</div>
+
+<p class="description">
+  Chrome <a href="https://github.com/felikf/angular-outliner.git">extension</a> that helps to visualise application components by drawing border.
+</p>
+
+<p class="description">
+  For <strong>Angular 10+</strong> components in debug mode.
+  It works on <code>http://localhost:4200</code> only.
+</p>
+
+<p class="description">Borders work better for components with <code>host: { display: block; }</code>.</p>
+
+<div class="container" id="container">
+  <fieldset>
+    <legend>Component name spaces</legend>
+    <div id="prefixes"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Components</legend>
+    <div class="componentFilter">
+      <input type="checkbox" id="toggleSelectAllComponents"/>
+
+      <label for="componentFilter">Filter: </label>
+      <input type="text" id="componentFilter" placeholder="filter"/>
+
+      <span class="link bold" id="sortByName">Sort by Name</span>
+      <span class="link" id="sortByCount">Sort by Count</span>
+
+      <div style="margin-top: 12px;">
+        <label for='componentNameOrSelector'>Class Name or Selector</label>
+        <select id="componentNameOrSelector">
+          <option selected value="name">Name</option>
+          <option value="selector">Selector</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="components"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Options</legend>
+    <div class="actions">
+      <div class="switchers">
+        <label class="switch-label" id="switcher">
+          Enable tracing
+          <span class="switch">
+            <input type="checkbox" id="traceSwitcherCbx" />
+            <span class="slider"></span>
+          </span>
+        </label>
+
+        <label class="switch-label" id="switcherCover">
+          Enable cover
+          <span class="switch">
+            <input type="checkbox" id="switcherCoverCbx" />
+            <span class="slider"></span>
+          </span>
+        </label>
+      </div>
+      <div class="switchers">
+        <label for="componentLabelPosition" style="margin-right: 4px;">Label Position</label>
+        <select id="componentLabelPosition">
+          <option selected value="topLeft">Top Left</option>
+          <option value="topRight">Top Right</option>
+        </select>
+      </div>
+    </div>
+  </fieldset>
+</div>
+
+<div id="error"></div>
+
+</body>
+</html>

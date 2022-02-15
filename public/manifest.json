@@ -13,5 +13,6 @@
     "default_popup": "popup.html"
   },
   "web_accessible_resources": ["js/tracer.js"],
-  "permissions": ["storage"]
+  "permissions": ["storage"],
+  "devtools_page": "devtools.html"
 }
