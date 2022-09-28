@@ -5,8 +5,9 @@ let storedComponents: NodeComponent[];
 
 const sortByNameFn = (a: NodeComponent, b: NodeComponent) => a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase());
 const sortByCountFn = (a: NodeComponent, b: NodeComponent) => b.count - a.count === 0 ? sortByNameFn(a, b) : b.count - a.count;
+const sortByTreeFn = (a: NodeComponent, b: NodeComponent) => 0;
 
-let currentSortFn: (a: NodeComponent, b: NodeComponent) => number = sortByNameFn;
+let currentSortFn: (a: NodeComponent, b: NodeComponent) => number = sortByTreeFn;
 
 function onDOMContentLoaded() {
     const traceSwitcherCbx = document.getElementById('traceSwitcherCbx') as HTMLInputElement;
@@ -108,6 +109,7 @@ function onDOMContentLoaded() {
         let divComponents = document.getElementById('components');
         let container = document.getElementById('container');
         let componentFilterInput = document.getElementById('componentFilter') as HTMLInputElement;
+        let sortByTree = document.getElementById('sortByTree');
         let sortByName = document.getElementById('sortByName');
         let sortByCount = document.getElementById('sortByCount');
         let toggleSelectAllComponents = document.getElementById('toggleSelectAllComponents') as HTMLInputElement;
@@ -130,12 +132,22 @@ function onDOMContentLoaded() {
             currentSortFn = sortByNameFn;
             sortByName.classList.add('bold');
             sortByCount.classList.remove('bold');
+            sortByTree.classList.remove('bold');
             updateComponents(divComponents, null);
         });
 
         sortByCount.addEventListener('click', () => {
             currentSortFn = sortByCountFn;
             sortByCount.classList.add('bold');
+            sortByName.classList.remove('bold');
+            sortByTree.classList.remove('bold');
+            updateComponents(divComponents, null);
+        });
+
+        sortByTree.addEventListener('click', () => {
+            currentSortFn = sortByTreeFn;
+            sortByTree.classList.add('bold');
+            sortByCount.classList.remove('bold');
             sortByName.classList.remove('bold');
             updateComponents(divComponents, null);
         });
@@ -267,6 +279,10 @@ function onDOMContentLoaded() {
               mainDiv.appendChild(inputColor);
               return mainDiv;
           })
+    }
+
+    function indent(count: number): string {
+        return new Array(count).fill(' ').join('');
     }
 
     function sendMessageToFindPrefixes(id) {
