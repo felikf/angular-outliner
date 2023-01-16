@@ -48,6 +48,16 @@ export interface ComponentTreeNode {
   id: string;
   name: string;
   children: ComponentTreeNode[];
+  detail: ComponentTreeNodeDetail;
+}
+
+export interface ComponentTreeNodeDetail {
+  exportAs: string,
+  onPush: boolean,
+  standalone: string,
+  selector: string[],
+  inputs: string[],
+  outputs: string[],
 }
 
 export type ComponentTextPosition = 'topLeft' | 'topRight';
@@ -83,7 +93,8 @@ export function findPrefixes(options: FindPrefixesOptions): FindPrefixesResult {
   const pseudoRoot: ComponentTreeNode = {
     id: 'root',
     name: 'root',
-    children: []
+    children: [],
+    detail: null
   };
 
   const newParent = recurse(rootEl, 0, options, pseudoRoot);
@@ -120,6 +131,7 @@ function recurse(el: ChildNode, level: number, options: FindPrefixesOptions, par
 }
 
 const regexp = /([a-zA-Z]+)-([a-zA-Z]+)/i;
+let counter = 0;
 
 function processElement(el: ChildNode, level: number, options: FindPrefixesOptions): ComponentTreeNode | null  {
   let hostElement: HTMLElement;
@@ -132,37 +144,39 @@ function processElement(el: ChildNode, level: number, options: FindPrefixesOptio
   }
 
   if (hostElement && component) {
-    const componentDef = component.constructor.ɵcmp;
-    const componentId = componentDef.id;
+    const componentId = `${counter++}`;
 
     const componentName = component.constructor.name;
     const tageName = hostElement.tagName.toLowerCase();
 
     handleDisplayBlock(options.displayBlock, componentId, hostElement);
 
-    handleComponent(componentName, componentDef);
+    handleComponent(componentName, component);
     handlePrefix(tageName);
     handleNodeBoundary(el, componentName, tageName, level, component);
-
-    return {
+    const result: ComponentTreeNode = {
       id: componentId,
       name: componentName,
-      children: []
+      children: [],
+      detail: getComponentInstanceInfoObj(component)
     };
+
+    return result;
   }
 
   return null;
 }
 
-function handleComponent(componentName: string, componentDef): void {
+function handleComponent(componentName: string, componentRef: any): void {
   const componentDescr = components.find(component => component.name === componentName)
   if (!componentDescr) {
     components.push({
       name: componentName,
-      onPush: componentDef.onPush,
-      selectors: componentDef.selectors,
+      onPush: componentRef.constructor.ɵcmp.onPush,
+      selectors: componentRef.constructor.ɵcmp.selectors,
       enabled: false,
-      count: 1
+      count: 1,
+      // componentRef // TODO
     });
   } else {
     componentDescr.count += 1;
@@ -398,10 +412,22 @@ function ensureCanvas(canvas, id, zIndex, width?, height?): void {
   return canvas;
 }
 
+function getComponentInstanceInfoObj(component: any): ComponentTreeNodeDetail {
+  const detail = component.constructor.ɵcmp;
+  return {
+    exportAs: detail.exportAs,
+    onPush: detail.onPush,
+    standalone: detail.standalone,
+    selector: detail.selectors,
+    inputs: Object.keys(detail.inputs).map((key) => key),
+    outputs: Object.keys(detail.outputs).map((key) => key),
+  };
+}
+
 function getComponentInstanceInfoCmp(component: any): string[] {
   const detail = component.constructor.ɵcmp;
   return [
-    `id: ${detail.id}`,
+    // `id: ${detail.id}`,
     `exportAs: ${detail.exportAs}`,
     `onPush: ${detail.onPush}`,
     `standalone: ${detail.standalone}`,
