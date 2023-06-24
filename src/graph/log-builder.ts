@@ -2,19 +2,19 @@ import { ComponentTreeNode } from '../tracer/trace';
 import { DocBuilder } from './doc-builder';
 
 export class LogBuilder implements DocBuilder {
-  #level: number = 0;
+  level: number = 0;
 
   getDocument(): string {
     return '';
   }
 
   onChild(node: ComponentTreeNode): void {
-    this.#level++;
+    this.level++;
     this.print(node);
   }
 
   onParent(node: ComponentTreeNode): void {
-    this.#level--;
+    this.level--;
   }
 
   onRoot(node: ComponentTreeNode): void {
@@ -22,7 +22,7 @@ export class LogBuilder implements DocBuilder {
   }
 
   private print(node: ComponentTreeNode): void {
-    console.log(`${this.indent(this.#level)}${node.name} - ${node.id}`);
+    console.log(`${this.indent(this.level)}${node.name} - ${node.id}`);
   }
 
   private indent(level: number): string {

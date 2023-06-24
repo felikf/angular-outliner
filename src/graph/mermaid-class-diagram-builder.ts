@@ -1,4 +1,4 @@
-import { ComponentTreeNode, ComponentTreeNodeDetail } from '../tracer/trace';
+import { ComponentTreeNode } from '../tracer/trace';
 import { DocBuilder } from './doc-builder';
 
 const SEPARATOR = '\n';
@@ -100,8 +100,7 @@ export class MermaidClassDiagramBuilder implements DocBuilder {
   }
 
   private styleOnPush(): string {
-    const onPushComponents = this.onPushIds.join(',');
-    return `class ${onPushComponents} onPushClass`;
+    return this.onPushIds.length ? `class ${(this.onPushIds.join(','))} onPushClass` : '';
   }
 
   private createId(node: ComponentTreeNode): string {
