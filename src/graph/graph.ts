@@ -8,9 +8,4 @@ export function buildGraph(root: ComponentTreeNode): string {
   const director = new Director(builder);
   director.make(root);
   return builder.getDocument();
-
 }
-
-
-
-

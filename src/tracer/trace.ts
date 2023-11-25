@@ -32,16 +32,16 @@ export interface NodeComponent {
 }
 
 export interface TogglePrefixesOptions {
-  prefixes: NodePrefix[],
-  components: NodeComponent[],
-  textPosition: ComponentTextPosition,
-  nameOrSelector: NameOrSelector
+  prefixes: NodePrefix[];
+  components: NodeComponent[];
+  textPosition: ComponentTextPosition;
+  nameOrSelector: NameOrSelector;
 }
 
 export interface FindPrefixesResult {
-  prefixes: NodePrefix[],
-  components: NodeComponent[],
-  root: ComponentTreeNode
+  prefixes: NodePrefix[];
+  components: NodeComponent[];
+  root: ComponentTreeNode;
 }
 
 export interface ComponentTreeNode {
@@ -52,12 +52,12 @@ export interface ComponentTreeNode {
 }
 
 export interface ComponentTreeNodeDetail {
-  exportAs: string,
-  onPush: boolean,
-  standalone: string,
-  selector: string[],
-  inputs: string[],
-  outputs: string[],
+  exportAs: string;
+  onPush: boolean;
+  standalone: string;
+  selector: string[];
+  inputs: string[];
+  outputs: string[];
 }
 
 export type ComponentTextPosition = 'topLeft' | 'topRight';
@@ -112,20 +112,27 @@ function reset(): void {
   components = [];
 }
 
-function recurse(el: ChildNode, level: number, options: FindPrefixesOptions, parent: ComponentTreeNode): ComponentTreeNode | null {
+function recurse(
+  el: ChildNode,
+  level: number,
+  options: FindPrefixesOptions,
+  parent: ComponentTreeNode
+): ComponentTreeNode | null {
   const newComponent = processElement(el, level, options);
 
   const usedParent = newComponent || parent;
-  el && el.childNodes && el.childNodes.forEach(n => {
-    const child = recurse(n, level++, options, usedParent);
-    if (child) {
-      // child.parent = usedParent;
+  el &&
+    el.childNodes &&
+    el.childNodes.forEach(n => {
+      const child = recurse(n, level++, options, usedParent);
+      if (child) {
+        // child.parent = usedParent;
 
-      if (usedParent) {
-        usedParent.children.push(child);
+        if (usedParent) {
+          usedParent.children.push(child);
+        }
       }
-    }
-  });
+    });
 
   return newComponent;
 }
@@ -133,15 +140,14 @@ function recurse(el: ChildNode, level: number, options: FindPrefixesOptions, par
 const regexp = /([a-zA-Z]+)-([a-zA-Z]+)/i;
 let counter = 0;
 
-function processElement(el: ChildNode, level: number, options: FindPrefixesOptions): ComponentTreeNode | null  {
+function processElement(el: ChildNode, level: number, options: FindPrefixesOptions): ComponentTreeNode | null {
   let hostElement: HTMLElement;
   let component;
 
   try {
     hostElement = ng.getHostElement(el);
     component = ng.getComponent(el);
-  } catch (e) {
-  }
+  } catch (e) {}
 
   if (hostElement && component) {
     const componentId = `${counter++}`;
@@ -168,14 +174,14 @@ function processElement(el: ChildNode, level: number, options: FindPrefixesOptio
 }
 
 function handleComponent(componentName: string, componentRef: any): void {
-  const componentDescr = components.find(component => component.name === componentName)
+  const componentDescr = components.find(component => component.name === componentName);
   if (!componentDescr) {
     components.push({
       name: componentName,
       onPush: componentRef.constructor.ɵcmp.onPush,
       selectors: componentRef.constructor.ɵcmp.selectors,
       enabled: false,
-      count: 1,
+      count: 1
       // componentRef // TODO
     });
   } else {
@@ -227,7 +233,12 @@ export function toggleCover(enabled: boolean) {
   _draw(nodes);
 }
 
-export function togglePrefix(payload: { prefixes: NodePrefix[], components: NodeComponent[], textPosition: ComponentTextPosition, nameOrSelector: NameOrSelector }) {
+export function togglePrefix(payload: {
+  prefixes: NodePrefix[];
+  components: NodeComponent[];
+  textPosition: ComponentTextPosition;
+  nameOrSelector: NameOrSelector;
+}) {
   prefixes = payload.prefixes;
   components = payload.components;
   position = payload.textPosition;
@@ -280,13 +291,14 @@ function _draw(nodes: NodeBoundary[]): void {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (_cover) {
-    ctx.fillStyle = "white";
+    ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  nodes && nodes.forEach(node => {
-    drawBorder(ctx, node);
-  });
+  nodes &&
+    nodes.forEach(node => {
+      drawBorder(ctx, node);
+    });
 }
 
 export function drawBorder(ctx, boundary: NodeBoundary) {
@@ -303,14 +315,22 @@ export function drawBorder(ctx, boundary: NodeBoundary) {
     return;
   }
 
-  const color = componentMatches ? (component && component.color) : (nodePrefix && nodePrefix.color) || 'blue';
+  const color = componentMatches ? component && component.color : (nodePrefix && nodePrefix.color) || 'blue';
   ctx.strokeStyle = color;
 
   ctx.strokeRect(boundary.left, boundary.top, boundary.width, boundary.height);
 
   if (boundary.name) {
     ctx.fillStyle = color;
-    drawTextBG(ctx, nameOrSelector === 'selector' ? boundary.nodeName : boundary.name, boundary.left, boundary.top, boundary.width, boundary.height, color);
+    drawTextBG(
+      ctx,
+      nameOrSelector === 'selector' ? boundary.nodeName : boundary.name,
+      boundary.left,
+      boundary.top,
+      boundary.width,
+      boundary.height,
+      color
+    );
   }
 }
 
@@ -321,37 +341,36 @@ function getCorrectTextColor(hex) {
   const hBlue = hexToB(hex);
 
   function hexToR(h) {
-    return parseInt((cutHex(h)).substring(0, 2), 16)
+    return parseInt(cutHex(h).substring(0, 2), 16);
   }
 
   function hexToG(h) {
-    return parseInt((cutHex(h)).substring(2, 4), 16)
+    return parseInt(cutHex(h).substring(2, 4), 16);
   }
 
   function hexToB(h) {
-    return parseInt((cutHex(h)).substring(4, 6), 16)
+    return parseInt(cutHex(h).substring(4, 6), 16);
   }
 
   function cutHex(h) {
-    return (h.charAt(0) == "#") ? h.substring(1, 7) : h
+    return h.charAt(0) == '#' ? h.substring(1, 7) : h;
   }
 
-  const cBrightness = ((hRed * 299) + (hGreen * 587) + (hBlue * 114)) / 1000;
+  const cBrightness = (hRed * 299 + hGreen * 587 + hBlue * 114) / 1000;
   if (cBrightness > threshold) {
-    return "#000000";
+    return '#000000';
   } else {
-    return "#ffffff";
+    return '#ffffff';
   }
 }
 
 function drawTextBG(ctx, txt, componentX, componentY, componentWidth, componentHeight, style: string) {
-
   /// lets save current state as we make a lot of changes
   ctx.save();
 
   /// set font
   // let font = ctx.font;
-  ctx.font = "14px Arial";
+  ctx.font = '14px Arial';
   let font = ctx.font;
 
   /// draw text from top - makes life easier at the moment
@@ -378,7 +397,18 @@ function drawTextBG(ctx, txt, componentX, componentY, componentWidth, componentH
   ctx.restore();
 }
 
-function computeByStrategy(x, y, componentWidth, textWidth, font): { x: number, y: number, width: number, height: number } {
+function computeByStrategy(
+  x,
+  y,
+  componentWidth,
+  textWidth,
+  font
+): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
   switch (position) {
     case 'topRight':
       return {
@@ -386,7 +416,7 @@ function computeByStrategy(x, y, componentWidth, textWidth, font): { x: number, 
         y: y,
         width: textWidth,
         height: parseInt(font, 10)
-      }
+      };
     case 'topLeft':
     default:
       return {
@@ -394,7 +424,7 @@ function computeByStrategy(x, y, componentWidth, textWidth, font): { x: number, 
         y: y,
         width: textWidth,
         height: parseInt(font, 10)
-      }
+      };
   }
 }
 
@@ -419,8 +449,8 @@ function getComponentInstanceInfoObj(component: any): ComponentTreeNodeDetail {
     onPush: detail.onPush,
     standalone: detail.standalone,
     selector: detail.selectors,
-    inputs: Object.keys(detail.inputs).map((key) => key),
-    outputs: Object.keys(detail.outputs).map((key) => key),
+    inputs: Object.keys(detail.inputs).map(key => key),
+    outputs: Object.keys(detail.outputs).map(key => key)
   };
 }
 
@@ -432,8 +462,8 @@ function getComponentInstanceInfoCmp(component: any): string[] {
     `onPush: ${detail.onPush}`,
     `standalone: ${detail.standalone}`,
     `selector: ${detail.selectors.join(' ')}`,
-    `inputs: ${Object.keys(detail.inputs).map((key) => `${key} = ${JSON.stringify(component[key])}`)}`,
-    `outputs: ${Object.keys(detail.outputs).map((key) => `${key}`)}`,
+    `inputs: ${Object.keys(detail.inputs).map(key => `${key} = ${JSON.stringify(component[key])}`)}`,
+    `outputs: ${Object.keys(detail.outputs).map(key => `${key}`)}`
   ];
 }
 
@@ -441,10 +471,7 @@ function getComponentInstanceInfo(found: NodeBoundary): string[] {
   const component = found.componentRef;
   // const detail = component.constructor.ɵcmp;
 
-  const result = [
-    `name: ${found.name}`,
-    ...getComponentInstanceInfoCmp(found.componentRef)
-  ];
+  const result = [`name: ${found.name}`, ...getComponentInstanceInfoCmp(found.componentRef)];
 
   // const directives = detail.directiveDefs && detail.directiveDefs();
   //
@@ -457,31 +484,31 @@ function getComponentInstanceInfo(found: NodeBoundary): string[] {
   return result;
 }
 
-function tooltipListener(tooltipCanvas, nodes,  e) {
+function tooltipListener(tooltipCanvas, nodes, e) {
   let mouseX = e.clientX;
   let mouseY = e.clientY;
 
   let found: NodeBoundary;
 
-  nodes && nodes.forEach(node => {
-    if ((mouseX >= node.left)  &&  (mouseX <= node.right)  &&  (mouseY >= node.top)  &&  (mouseY <= node.bottom)) {
-      found = found ? (found.level > node.level ? found: node) : node;
-    }
-  });
+  nodes &&
+    nodes.forEach(node => {
+      if (mouseX >= node.left && mouseX <= node.right && mouseY >= node.top && mouseY <= node.bottom) {
+        found = found ? (found.level > node.level ? found : node) : node;
+      }
+    });
 
   if (found) {
     let ctx = (<any>tooltipCanvas).getContext('2d');
     ctx.clearRect(0, 0, (<any>tooltipCanvas).width, (<any>tooltipCanvas).height);
 
     getComponentInstanceInfo(found).forEach((text, i) => ctx.fillText(text, 40, (i + 1) * 15));
-    tooltipCanvas.style.left = mouseX + "px";
-    tooltipCanvas.style.top = mouseY + "px";
+    tooltipCanvas.style.left = mouseX + 'px';
+    tooltipCanvas.style.top = mouseY + 'px';
   }
-
 }
 
 function tooltip(nodes: NodeBoundary[]) {
-  let tooltipCanvas = document.getElementById("tooltip");
+  let tooltipCanvas = document.getElementById('tooltip');
   listener = tooltipListener.bind(this, tooltipCanvas, nodes);
   document.body.addEventListener('mousemove', listener);
 }

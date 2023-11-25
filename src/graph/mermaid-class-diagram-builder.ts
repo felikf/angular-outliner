@@ -13,7 +13,6 @@ const FLOWCHART_TEMPLATE = [
   '```'
 ];
 
-
 interface StackItem {
   parent: ComponentTreeNode;
   child: ComponentTreeNode;
@@ -54,18 +53,18 @@ export class MermaidClassDiagramBuilder implements DocBuilder {
     // }
 
     // if (this.countMap[relId] < 3) {
-      this.relations.push({
-        parent: {
-          ...parent,
-          children: []
-        },
-        child: {
-          ...node,
-          children: []
-        },
-        level: this.level,
-        count: 1
-      });
+    this.relations.push({
+      parent: {
+        ...parent,
+        children: []
+      },
+      child: {
+        ...node,
+        children: []
+      },
+      level: this.level,
+      count: 1
+    });
     // }
   }
 
@@ -78,40 +77,38 @@ export class MermaidClassDiagramBuilder implements DocBuilder {
     const result = [...FLOWCHART_TEMPLATE];
     const tree = this.stringifyRelations();
 
-    return result
-      .map(item => item.replace('TREE_PLACEHOLDER', tree))
-      .map(item => item.replace('STYLE_PLACEHOLDER', this.styleOnPush()))
-      // .map(item => item.replace('CLASS_PLACEHOLDER', classesDefinitions))
-      .join(SEPARATOR)
-    ;
+    return (
+      result
+        .map(item => item.replace('TREE_PLACEHOLDER', tree))
+        .map(item => item.replace('STYLE_PLACEHOLDER', this.styleOnPush()))
+        // .map(item => item.replace('CLASS_PLACEHOLDER', classesDefinitions))
+        .join(SEPARATOR)
+    );
   }
 
   private stringifyRelations(): string {
-    return this.relations
-      .map(item => this.createRelationshipString(item))
-      .join(SEPARATOR);
+    return this.relations.map(item => this.createRelationshipString(item)).join(SEPARATOR);
   }
 
   private createRelationshipString({ child, level, parent }: StackItem): string {
     const indent = this.indent(level);
     const parentId = `${this.createId(parent)}[${parent.name}]`;
     const childId = `${this.createId(child)}[${child.name}]`;
-    return `${indent}${parentId}-->${childId}`
+    return `${indent}${parentId}-->${childId}`;
   }
 
   private styleOnPush(): string {
-    return this.onPushIds.length ? `class ${(this.onPushIds.join(','))} onPushClass` : '';
+    return this.onPushIds.length ? `class ${this.onPushIds.join(',')} onPushClass` : '';
   }
 
   private createId(node: ComponentTreeNode): string {
-    return `${node.name}-${node.id}`
+    return `${node.name}-${node.id}`;
   }
 
   private indent(level: number): string {
     return new Array(level).join(' ');
   }
 }
-
 
 // private componentsMap: { [key: string]: ComponentTreeNodeDetail } = {};
 // if (node.detail) {
