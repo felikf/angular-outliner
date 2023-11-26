@@ -1,3 +1,5 @@
+import { debounce } from './debounce';
+
 export interface FindPrefixesOptions {
   displayBlock: boolean;
 }
@@ -64,7 +66,7 @@ export interface ComponentTreeNodeDetail {
 export type ComponentTextPosition = 'topLeft' | 'topRight';
 export type NameOrSelector = 'name' | 'selector';
 
-let _canvas = null;
+let _canvas: HTMLCanvasElement = null;
 let _canvasHover = null;
 let listener;
 let _cover = false;
@@ -276,22 +278,23 @@ export function toggleTracing(toggle) {
 }
 
 export function clear(): void {
-  // debug('trace.ts: clear');
   clearCanvas(_canvas);
 }
 
-function clearCanvas(canvas): void {
+function clearCanvas(canvas: HTMLCanvasElement): void {
   if (!canvas) {
     return;
   }
 
   const ctx = canvas.getContext('2d');
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (canvas.parentNode) {
     canvas.parentNode.removeChild(canvas);
   }
 
+  // clear cache
   drawingContext.clear();
 }
 
@@ -363,7 +366,7 @@ function handleConflictingNodes(node: NodeBoundary): number {
 }
 
 function getConflictingNodesCount(node: NodeBoundary): number {
-  console.group(`Processing node ${node.name}`);
+  // console.group(`Processing node ${node.name}`);
 
   let conflicting = nodes.filter(
     n =>
@@ -373,11 +376,11 @@ function getConflictingNodesCount(node: NodeBoundary): number {
       drawingContext.has(n.componentId)
   );
 
-  conflicting.forEach(conflictingNode => {
-    console.log('Conflicting node', conflictingNode.name);
-  });
+  // conflicting.forEach(conflictingNode => {
+  //   console.log('Conflicting node', conflictingNode.name);
+  // });
 
-  console.groupEnd();
+  // console.groupEnd();
 
   return conflicting.length;
 }
@@ -476,7 +479,8 @@ function computeByStrategy(
   }
 }
 
-function ensureCanvas(canvas, id, zIndex, width?, height?): void {
+let scrollFn;
+function ensureCanvas(canvas: HTMLCanvasElement, id, zIndex, width?, height?): HTMLCanvasElement {
   if (canvas === null) {
     canvas = document.createElement('canvas');
     canvas.id = id;
@@ -486,6 +490,31 @@ function ensureCanvas(canvas, id, zIndex, width?, height?): void {
   }
 
   document.body.insertBefore(canvas, document.body.firstChild);
+
+  function handleScroll() {
+    console.log('handleScroll');
+
+    const val = {
+      prefixes: [...prefixes],
+      components: [...components],
+      textPosition: position,
+      nameOrSelector
+    };
+
+    findPrefixes({
+      displayBlock: false
+    });
+    clear();
+    togglePrefix(val);
+  }
+
+  if (scrollFn) {
+    window.removeEventListener('scroll', scrollFn);
+  }
+
+  // Attach the debounced scroll event handler to the window
+  scrollFn = debounce(handleScroll, 200);
+  window.addEventListener('scroll', scrollFn);
 
   return canvas;
 }
@@ -532,7 +561,7 @@ function getComponentInstanceInfo(found: NodeBoundary): string[] {
   return result;
 }
 
-function tooltipListener(tooltipCanvas, nodes, e) {
+function tooltipListener(tooltipCanvas: HTMLCanvasElement, nodes: NodeBoundary[], e) {
   let mouseX = e.clientX;
   let mouseY = e.clientY;
 
@@ -546,8 +575,8 @@ function tooltipListener(tooltipCanvas, nodes, e) {
     });
 
   if (found) {
-    let ctx = (<any>tooltipCanvas).getContext('2d');
-    ctx.clearRect(0, 0, (<any>tooltipCanvas).width, (<any>tooltipCanvas).height);
+    let ctx = tooltipCanvas.getContext('2d');
+    ctx.clearRect(0, 0, tooltipCanvas.width, tooltipCanvas.height);
 
     getComponentInstanceInfo(found).forEach((text, i) => ctx.fillText(text, 40, (i + 1) * 15));
     tooltipCanvas.style.left = mouseX + 'px';
