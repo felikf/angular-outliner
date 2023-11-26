@@ -368,18 +368,24 @@ function handleConflictingNodes(node: NodeBoundary): number {
 function getConflictingNodesCount(node: NodeBoundary): number {
   // console.group(`Processing node ${node.name}`);
 
-  let conflicting = nodes.filter(
-    n =>
-      Math.abs(n.left - node.left) < 10 &&
+  let conflicting = nodes.filter(n => {
+    // console.log(
+    //   `${n.name}, left: ${Math.abs(n.left - node.left)}, top: ${Math.abs(n.top - node.top)}
+    //   , ids: ${n.componentId !== node.componentId}, drawingContextHas: ${drawingContext.has(n.componentId)} `
+    // );
+
+    return (
+      Math.abs(n.left - node.left) < 50 &&
       Math.abs(n.top - node.top) < 10 &&
       n.componentId !== node.componentId &&
       drawingContext.has(n.componentId)
-  );
+    );
+  });
 
   // conflicting.forEach(conflictingNode => {
   //   console.log('Conflicting node', conflictingNode.name);
   // });
-
+  //
   // console.groupEnd();
 
   return conflicting.length;
@@ -480,6 +486,7 @@ function computeByStrategy(
 }
 
 let scrollFn;
+
 function ensureCanvas(canvas: HTMLCanvasElement, id, zIndex, width?, height?): HTMLCanvasElement {
   if (canvas === null) {
     canvas = document.createElement('canvas');
@@ -492,8 +499,6 @@ function ensureCanvas(canvas: HTMLCanvasElement, id, zIndex, width?, height?): H
   document.body.insertBefore(canvas, document.body.firstChild);
 
   function handleScroll() {
-    console.log('handleScroll');
-
     const val = {
       prefixes: [...prefixes],
       components: [...components],
