@@ -13,6 +13,7 @@ export interface NodeBoundary {
   nodeName: string;
   level: number;
   componentRef: any;
+  componentId: string;
 }
 
 export interface NodePrefix {
@@ -63,7 +64,6 @@ export interface ComponentTreeNodeDetail {
 export type ComponentTextPosition = 'topLeft' | 'topRight';
 export type NameOrSelector = 'name' | 'selector';
 
-let _enabled: boolean;
 let _canvas = null;
 let _canvasHover = null;
 let listener;
@@ -77,6 +77,11 @@ let extensionDebugLogEnabled = false;
 const ng = window['ng'];
 
 const originalDisplay = new Map<string, string>();
+
+/**
+ * ComponentId to drawing context
+ */
+let drawingContext = new Map<string, any>();
 
 export function isAngular() {
   const isAngular = window['ng'] && !!window['Zone'];
@@ -159,13 +164,15 @@ function processElement(el: ChildNode, level: number, options: FindPrefixesOptio
 
     handleComponent(componentName, component);
     handlePrefix(tageName);
-    handleNodeBoundary(el, componentName, tageName, level, component);
+
     const result: ComponentTreeNode = {
       id: componentId,
       name: componentName,
       children: [],
       detail: getComponentInstanceInfoObj(component)
     };
+
+    handleNodeBoundary(el, componentName, tageName, level, component, componentId);
 
     return result;
   }
@@ -207,10 +214,17 @@ function handlePrefix(tageName: string): void {
   }
 }
 
-function handleNodeBoundary(el, componentName: string, tageName: string, level: number, component: any): void {
+function handleNodeBoundary(
+  el,
+  componentName: string,
+  tageName: string,
+  level: number,
+  component: any,
+  componentId: string
+): void {
   if (el.getBoundingClientRect) {
     const rect = el.getBoundingClientRect();
-    const node = {
+    const node: NodeBoundary = {
       top: rect.top,
       bottom: rect.bottom,
       left: rect.left,
@@ -220,7 +234,8 @@ function handleNodeBoundary(el, componentName: string, tageName: string, level: 
       name: componentName,
       nodeName: tageName,
       level: level,
-      componentRef: component
+      componentRef: component,
+      componentId: componentId
     };
 
     nodes.push(node);
@@ -249,7 +264,6 @@ export function togglePrefix(payload: {
 }
 
 export function toggleTracing(toggle) {
-  setEnabled(toggle.enabled);
   prefixes = toggle.prefixes;
 
   if (toggle.enabled) {
@@ -259,10 +273,6 @@ export function toggleTracing(toggle) {
     clearCanvas(_canvas);
     document.body.removeEventListener('mousemove', listener);
   }
-}
-
-function setEnabled(enabled: boolean) {
-  _enabled = enabled;
 }
 
 export function clear(): void {
@@ -281,6 +291,8 @@ function clearCanvas(canvas): void {
   if (canvas.parentNode) {
     canvas.parentNode.removeChild(canvas);
   }
+
+  drawingContext.clear();
 }
 
 function _draw(nodes: NodeBoundary[]): void {
@@ -296,20 +308,22 @@ function _draw(nodes: NodeBoundary[]): void {
   }
 
   nodes &&
-    nodes.forEach(node => {
-      drawBorder(ctx, node);
-    });
+    nodes
+      .sort((a, b) => a.level - b.level)
+      .forEach(node => {
+        drawBorder(ctx, node);
+      });
 }
 
-export function drawBorder(ctx, boundary: NodeBoundary) {
+export function drawBorder(ctx, node: NodeBoundary) {
   // outline
   ctx.lineWidth = 1;
 
-  const nodePrefix = prefixes.find(prefix => boundary.nodeName && boundary.nodeName.startsWith(prefix.prefix));
-  const component = components.find(component => boundary.name && boundary.name === component.name);
+  const nodePrefix = prefixes.find(prefix => node.nodeName && node.nodeName.startsWith(prefix.prefix));
+  const component = components.find(component => node.name && node.name === component.name);
 
-  const prefixMatches = nodePrefix && nodePrefix.enabled;
-  const componentMatches = component && component.enabled;
+  const prefixMatches = nodePrefix?.enabled;
+  const componentMatches = component?.enabled;
 
   if (!prefixMatches && !componentMatches) {
     return;
@@ -318,20 +332,54 @@ export function drawBorder(ctx, boundary: NodeBoundary) {
   const color = componentMatches ? component && component.color : (nodePrefix && nodePrefix.color) || 'blue';
   ctx.strokeStyle = color;
 
-  ctx.strokeRect(boundary.left, boundary.top, boundary.width, boundary.height);
+  ctx.strokeRect(node.left, node.top, node.width, node.height);
 
-  if (boundary.name) {
+  if (node.name) {
+    const count = handleConflictingNodes(node);
+    let verticalOffset = 0;
+
+    if (count) {
+      verticalOffset = count * 15;
+    }
+
     ctx.fillStyle = color;
     drawTextBG(
       ctx,
-      nameOrSelector === 'selector' ? boundary.nodeName : boundary.name,
-      boundary.left,
-      boundary.top,
-      boundary.width,
-      boundary.height,
+      nameOrSelector === 'selector' ? node.nodeName : node.name,
+      node.left,
+      node.top + verticalOffset,
+      node.width,
+      node.height,
       color
     );
   }
+}
+
+function handleConflictingNodes(node: NodeBoundary): number {
+  const conflictingNodesCount = getConflictingNodesCount(node);
+
+  drawingContext.set(node.componentId, node);
+  return conflictingNodesCount;
+}
+
+function getConflictingNodesCount(node: NodeBoundary): number {
+  console.group(`Processing node ${node.name}`);
+
+  let conflicting = nodes.filter(
+    n =>
+      Math.abs(n.left - node.left) < 10 &&
+      Math.abs(n.top - node.top) < 10 &&
+      n.componentId !== node.componentId &&
+      drawingContext.has(n.componentId)
+  );
+
+  conflicting.forEach(conflictingNode => {
+    console.log('Conflicting node', conflictingNode.name);
+  });
+
+  console.groupEnd();
+
+  return conflicting.length;
 }
 
 function getCorrectTextColor(hex) {
