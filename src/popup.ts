@@ -1,10 +1,13 @@
 import { ComponentTreeNode, FindPrefixesResult, NodeComponent, NodePrefix } from './tracer/trace';
 import { createCheckbox, createInput, createLabel } from './util';
 import { buildGraph } from './graph/graph';
+import { copyTextToClipboard } from './copy-to-clipboard';
 
 let storedPrefixes: NodePrefix[];
 let storedComponents: NodeComponent[];
 let storedRoot: ComponentTreeNode;
+
+let hoveredLabel: HTMLLabelElement = null;
 
 const sortByNameFn = (a: NodeComponent, b: NodeComponent) =>
   a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase());
@@ -19,6 +22,10 @@ function onDOMContentLoaded() {
   const autoDisplayBlockCbx = document.getElementById('autoDisplayBlockCbx') as HTMLInputElement;
   const errorElem = document.getElementById('error');
   const switcherElem = document.getElementById('switcher');
+
+  document.getElementById('copy-to-clipboard').addEventListener('click', () => {
+    copyTextToClipboard(document.querySelector('#mermaid').textContent);
+  });
 
   // chrome.storage.local.get('ngTraceEnabled', ({ ngTraceEnabled }) => {
   //     traceSwitcherCbx.checked = !!ngTraceEnabled;
@@ -95,7 +102,7 @@ function onDOMContentLoaded() {
       let componentName = input.getAttribute('data-component');
       let inputColorEl: HTMLInputElement = document.querySelector(`input[data-component=${componentName}][type=text]`);
       let color = (inputColorEl && inputColorEl.value) || 'red';
-      let enabled = input.checked;
+      let enabled = input.checked || (hoveredLabel && input.id === hoveredLabel.htmlFor);
       return {
         name: componentName,
         enabled,
@@ -259,6 +266,15 @@ function onDOMContentLoaded() {
           id,
           `${nameOrSelector === 'selector' ? component.selectors.join(', ') : component.name} (${component.count})`
         );
+
+        label.addEventListener('mouseenter', () => {
+          hoveredLabel = label;
+          updateUi();
+        });
+        label.addEventListener('mouseleave', () => {
+          hoveredLabel = null;
+          updateUi();
+        });
 
         const changeDetectionEl = document.createElement('span');
         changeDetectionEl.textContent = `${component.onPush ? 'OnPush' : 'Default'}`;

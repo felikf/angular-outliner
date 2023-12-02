@@ -123,6 +123,15 @@
   .bold {
     font-weight: 600;
   }
+
+  .mermaid-description {
+      margin-bottom: 12px;
+  }
+
+  #mermaid {
+    font-family: monospace;
+    background-color: #f5f5f5;
+  }
 </style>
 
 <div class="title-wrapper">
@@ -206,15 +215,23 @@
     </div>
   </fieldset>
 
-  <div>
-    <a href="https://mermaid.js.org/">Mermaid</a> Diagramming and charting tool.
-    Copy following snippet into a MarkDown file. It will show a graph of components on used on current page.
-    You can enable it WebStorm settings, Visual Studio has a plugin. Also supported in GitHub.
+  <div style="display: flex; flex-direction: column">
+    <div class="mermaid-description">
+      <a href="https://mermaid.js.org/">Mermaid</a> Diagramming and charting tool.
+      Copy following snippet into a MarkDown file. It will show a graph of components on used on current page.
+      You can enable it WebStorm settings, Visual Studio has a plugin. Also supported in GitHub.
+    </div>
+
+    <button id="copy-to-clipboard" style="align-self: flex-end">
+      Copy
+    </button>
+
+    <div>
+      <textarea id="mermaid" cols="57" rows="20">
+      </textarea>
+    </div>
   </div>
-  <div>
-    <textarea id="mermaid" cols="57" rows="20">
-    </textarea>
-  </div>
+
 </div>
 
 
