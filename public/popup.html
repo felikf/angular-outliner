@@ -1,4 +1,6 @@
 <link rel="stylesheet" href="slider.css">
+<script src="mermaid.min.js"></script>
+
 
 <style>
   h1, h2, h3, h4, h5 {
@@ -134,107 +136,120 @@
   }
 </style>
 
-<div class="title-wrapper">
-  <h4 class="title-wrapper__title">Angular component debugger</h4>
-</div>
+<div style="display: flex; flex-direction: column; gap: 16px;">
+  <div class="title-wrapper">
+    <h4 class="title-wrapper__title">Angular component debugger</h4>
+  </div>
 
-<p class="description">
-  Chrome <a href="https://github.com/felikf/angular-outliner.git">extension</a> that helps to visualise application components by drawing border.
-</p>
+  <details>
+    <summary>Details</summary>
+    <p class="description">
+      The Chrome extension, Angular Outliner, enhances the visualization of Angular application components by drawing borders around them, making it easier to grasp the application's structure and component relationships.
+    </p>
 
-<p class="description">
-  For <strong>Angular 10+</strong> components in debug mode.
-  It works on <code>http://localhost:4200</code> only.
-</p>
+    <p class="description">
+      For <strong>Angular 10+</strong> components in debug mode.
+      It works on <code>http://localhost:4200</code> only.
+    </p>
 
-<p class="description">You may try to set <code>host: { display: block; }</code>. Sometimes it helps to draw more accurate border.</p>
-<label class="switch-label" id="autoDisplayBlockSwitcher">
-  Set display block for all unset components
-  <span class="switch">
+    <p class="description">You may try to set <code>host: { display: block; }</code>. Sometimes it helps to draw more accurate border.</p>
+    <label class="switch-label" id="autoDisplayBlockSwitcher">
+      Set display block for all unset components
+      <span class="switch">
             <input type="checkbox" id="autoDisplayBlockCbx"/>
             <span class="slider"></span>
           </span>
-</label>
+    </label>
+  </details>
 
-<div class="container" id="container">
-  <fieldset>
-    <legend>Component name spaces</legend>
-    <div id="prefixes"></div>
-  </fieldset>
+  <div class="container" id="container">
+    <fieldset>
+      <legend>Component name spaces</legend>
+      <div id="prefixes"></div>
+    </fieldset>
 
-  <fieldset>
-    <legend>Components</legend>
-    <div class="componentFilter">
-      <input type="checkbox" id="toggleSelectAllComponents"/>
+    <fieldset>
+      <legend>Components</legend>
+      <div class="componentFilter">
+        <input type="checkbox" id="toggleSelectAllComponents"/>
 
-      <label for="componentFilter">Filter: </label>
-      <input type="text" id="componentFilter" placeholder="filter"/>
+        <label for="componentFilter">Filter: </label>
+        <input type="text" id="componentFilter" placeholder="filter"/>
 
-      <span class="link bold" id="sortByName">Sort by Name</span>
-      <span class="link" id="sortByCount">Sort by Count</span>
+        <span class="link bold" id="sortByName">Sort by Name</span>
+        <span class="link" id="sortByCount">Sort by Count</span>
 
-      <div style="margin-top: 12px;">
-        <label for='componentNameOrSelector'>Class Name or Selector</label>
-        <select id="componentNameOrSelector">
-          <option selected value="name">Name</option>
-          <option value="selector">Selector</option>
-        </select>
+        <div style="margin-top: 12px;">
+          <label for='componentNameOrSelector'>Class Name or Selector</label>
+          <select id="componentNameOrSelector">
+            <option selected value="name">Name</option>
+            <option value="selector">Selector</option>
+          </select>
+        </div>
       </div>
-    </div>
 
-    <div id="components"></div>
-  </fieldset>
+      <div id="components"></div>
+    </fieldset>
 
-  <fieldset>
-    <legend>Options</legend>
-    <div class="actions">
-      <div class="switchers">
-        <label class="switch-label" id="switcher">
-          Enable tracing
-          <span class="switch">
+    <fieldset>
+      <legend>Options</legend>
+      <div class="actions">
+        <div class="switchers">
+          <label class="switch-label" id="switcher">
+            Enable tracing
+            <span class="switch">
             <input type="checkbox" id="traceSwitcherCbx" />
             <span class="slider"></span>
           </span>
-        </label>
+          </label>
 
-        <label class="switch-label" id="switcherCover">
-          Enable cover
-          <span class="switch">
+          <label class="switch-label" id="switcherCover">
+            Enable cover
+            <span class="switch">
             <input type="checkbox" id="switcherCoverCbx" />
             <span class="slider"></span>
           </span>
-        </label>
+          </label>
+        </div>
+        <div class="switchers">
+          <label for="componentLabelPosition" style="margin-right: 4px;">Label Position</label>
+          <select id="componentLabelPosition">
+            <option selected value="topLeft">Top Left</option>
+            <option value="topRight">Top Right</option>
+          </select>
+        </div>
       </div>
-      <div class="switchers">
-        <label for="componentLabelPosition" style="margin-right: 4px;">Label Position</label>
-        <select id="componentLabelPosition">
-          <option selected value="topLeft">Top Left</option>
-          <option value="topRight">Top Right</option>
-        </select>
+    </fieldset>
+
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div class="mermaid-description">
+        <a href="https://mermaid.js.org/">Mermaid</a> Diagramming and charting tool.
+        Copy following snippet into a MarkDown file. It will show a graph of components on used on current page.
+        You can enable it WebStorm settings, Visual Studio has a plugin. Also supported in GitHub.
       </div>
-    </div>
-  </fieldset>
 
-  <div style="display: flex; flex-direction: column">
-    <div class="mermaid-description">
-      <a href="https://mermaid.js.org/">Mermaid</a> Diagramming and charting tool.
-      Copy following snippet into a MarkDown file. It will show a graph of components on used on current page.
-      You can enable it WebStorm settings, Visual Studio has a plugin. Also supported in GitHub.
-    </div>
+      <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start">
+        <h4>Diagram preview <span style="vertical-align: super;" title="Green = OnPush">(?)</span>:</h4>
+        <button id="copy-to-clipboard"
+                title="Copy to clipboard">
+          Copy
+        </button>
+      </div>
 
-    <button id="copy-to-clipboard" style="align-self: flex-end">
-      Copy
-    </button>
+      <div id="mermaid-diagram">
 
-    <div>
-      <textarea id="mermaid" cols="57" rows="20">
+      </div>
+
+      <div>
+      <textarea id="mermaid" cols="57" rows="10">
       </textarea>
+      </div>
+
     </div>
+
   </div>
 
+  <div id="error"></div>
 </div>
-
-
-<div id="error"></div>
 
 <script src="js/popup.js"></script>

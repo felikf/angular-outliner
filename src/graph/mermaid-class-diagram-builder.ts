@@ -1,16 +1,19 @@
 import { ComponentTreeNode } from '../tracer/trace';
 import { DocBuilder } from './doc-builder';
 
+export const toMarkdown = diagram => {
+  return ['[Mermaid](https://mermaid-js.github.io/mermaid/#/flowchart?id=graph)', '```mermaid', diagram, '```'].join(
+    SEPARATOR
+  );
+};
+
 const SEPARATOR = '\n';
 const FLOWCHART_TEMPLATE = [
-  '[Mermaid](https://mermaid-js.github.io/mermaid/#/flowchart?id=graph)',
-  '```mermaid',
   'flowchart TD',
   'classDef onPushClass fill:#095,stroke:#333,stroke-width:4px;',
   'TREE_PLACEHOLDER', // TO BE INSERTED HERE
-  'STYLE_PLACEHOLDER', // TO BE INSERTED HERE
+  'STYLE_PLACEHOLDER' // TO BE INSERTED HERE
   // 'CLASS_PLACEHOLDER', // TO BE INSERTED HERE
-  '```'
 ];
 
 interface StackItem {

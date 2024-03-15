@@ -2,12 +2,16 @@ import { ComponentTreeNode, FindPrefixesResult, NodeComponent, NodePrefix } from
 import { createCheckbox, createInput, createLabel } from './util';
 import { buildGraph } from './graph/graph';
 import { copyTextToClipboard } from './copy-to-clipboard';
+import { toMarkdown } from './graph/mermaid-class-diagram-builder';
+// import mermaid from 'mermaid';
 
 let storedPrefixes: NodePrefix[];
 let storedComponents: NodeComponent[];
 let storedRoot: ComponentTreeNode;
 
 let hoveredLabel: HTMLLabelElement = null;
+
+// window['mermaid'] = mermaid;
 
 const sortByNameFn = (a: NodeComponent, b: NodeComponent) =>
   a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase());
@@ -317,9 +321,26 @@ function onDOMContentLoaded() {
           storedPrefixes = prefixes;
           storedRoot = root;
           buildPopup(prefixes, components);
-          const s = buildGraph(storedRoot);
-          document.querySelector('#mermaid').innerHTML = s;
-          console.log(s);
+          const mermaidCode = buildGraph(storedRoot);
+
+          let diagram = document.getElementById('mermaid-diagram');
+
+          try {
+            window[`mermaid`]
+              .render('mermaid-' + Math.random().toString(36).substring(7), mermaidCode, diagram)
+              .then(e => {
+                diagram.innerHTML = e.svg;
+              });
+          } catch (e) {
+            console.error(e);
+          }
+
+          document.querySelector('#mermaid').innerHTML = toMarkdown(mermaidCode);
+
+          Array.from(document.querySelectorAll('g.node.default')).forEach(n => {
+            console.log(n);
+            n.addEventListener('mouseenter', () => console.log(n));
+          });
         }
       }
     );
