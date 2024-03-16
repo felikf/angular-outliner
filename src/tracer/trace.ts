@@ -188,7 +188,7 @@ function handleComponent(componentName: string, componentRef: any): void {
     components.push({
       name: componentName,
       onPush: componentRef.constructor.ɵcmp.onPush,
-      selectors: componentRef.constructor.ɵcmp.selectors,
+      selectors: flatten(componentRef.constructor.ɵcmp.selectors),
       enabled: false,
       count: 1
       // componentRef // TODO
@@ -530,10 +530,28 @@ function getComponentInstanceInfoObj(component: any): ComponentTreeNodeDetail {
     exportAs: detail.exportAs,
     onPush: detail.onPush,
     standalone: detail.standalone,
-    selector: detail.selectors,
+    selector: flatten(detail.selectors),
     inputs: Object.keys(detail.inputs).map(key => key),
     outputs: Object.keys(detail.outputs).map(key => key)
   };
+}
+
+/**
+ * For:
+ * @Component({
+ *   selector: 'button[sc-button], button[sc-icon-button], [sc-button]',
+ * })
+ *
+ * the detail selectors returns array of arrays:
+ *
+ * (3) ['button', 'sc-button', '']
+ * (3) ['button', 'sc-icon-button', '']
+ * (3) ['', 'sc-button', '']
+ *
+ * I flatten these here.
+ */
+function flatten(selectors: string[][]): string[] {
+  return selectors.reduce((acc, current) => [...acc, ...current], []).filter(v => !!v);
 }
 
 function getComponentInstanceInfoCmp(component: any): string[] {

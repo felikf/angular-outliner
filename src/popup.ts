@@ -131,9 +131,28 @@ function onDOMContentLoaded() {
     });
   }
 
-  const colors = ['#f3d1dc', '#89aeb2', '#f1e0b0', '#fdcf76', '#d2a3a9', '#c1cd97'];
+  const colors1 = ['#7BD3EA', '#A1EEBD', '#FF8080', '#F6F7C4', '#F6D6D6', '#FFCF96', '#F6FDC3', '#CDFAD5'];
 
-  const randomColorFn: () => string = () => `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+  let colorCounter = 0;
+
+  const prefixToColorMap: Record<string, string> = {};
+
+  function generateRandomShade(hexColor) {
+    // Generate a random grade between -50 and 50
+    const grade = Math.floor(Math.random() * 101) - 50;
+
+    // Convert hex to RGB
+    let r = parseInt(hexColor.slice(1, 3), 16);
+    let g = parseInt(hexColor.slice(3, 5), 16);
+    let b = parseInt(hexColor.slice(5, 7), 16);
+
+    // Adjust brightness
+    r = Math.min(255, Math.max(0, r + grade));
+    g = Math.min(255, Math.max(0, g + grade));
+    b = Math.min(255, Math.max(0, b + grade));
+
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
 
   function removeComponents(): void {
     let divComponents = document.getElementById('components');
@@ -226,12 +245,17 @@ function onDOMContentLoaded() {
   function createPrefixesInputs(prefixes: NodePrefix[]): HTMLDivElement[] {
     return prefixes.map((prefix, i) => {
       const mainDiv: HTMLDivElement = document.createElement('div');
-      const color = colors[i] || randomColorFn();
+      const color = generateRandomShade(colors1[colorCounter++ % colors1.length]);
+      prefixToColorMap[prefix.prefix] = color;
+
+      console.log(`%c prefix: ${prefix.prefix} color: ${color}`, `background: ${color}`);
+
       mainDiv.classList.add('prefixes__pref');
       mainDiv.style.backgroundColor = color;
 
       const id = `pref-${prefix.prefix}`;
-      const label = createLabel(id, `${prefix.prefix} (${prefix.count})`);
+      const label = createLabel(id, `${prefix.prefix}`);
+      const labelCount = createLabel(`${id}-count`, ` ${prefix.count}`);
       const prefixCb = createCheckbox(id, updateUi);
       prefixCb.dataset.prefix = prefix.prefix;
 
@@ -243,6 +267,7 @@ function onDOMContentLoaded() {
 
       mainDiv.appendChild(prefixCb);
       mainDiv.appendChild(label);
+      mainDiv.appendChild(labelCount);
       mainDiv.appendChild(inputColor);
 
       return mainDiv;
@@ -261,15 +286,29 @@ function onDOMContentLoaded() {
       .sort(sort || sortByNameFn)
       .map((component, i) => {
         const mainDiv: HTMLDivElement = document.createElement('div');
-        const color = colors[i] || randomColorFn();
+
+        const componentSelector = component.selectors.find(s => s.indexOf('-') > -1);
+
+        const componentSelectorPrefix = componentSelector?.substring(0, componentSelector.indexOf('-'));
+        let foundColorForPrefixOrRandom = componentSelectorPrefix
+          ? prefixToColorMap[componentSelectorPrefix]
+          : colors1[colorCounter++ % colors1.length];
+        const color = generateRandomShade(foundColorForPrefixOrRandom);
+
+        console.log(
+          `%c componentSelectorPrefix: component: ${component.name} componentSelectorPrefix: ${componentSelectorPrefix} foundColorForPrefixOrRandom: ${foundColorForPrefixOrRandom} color: ${color}`,
+          `background: ${color}`
+        );
+
         mainDiv.classList.add('components__pref');
         mainDiv.style.backgroundColor = color;
 
         const id = `pref-${component.name}`;
         const label = createLabel(
           id,
-          `${nameOrSelector === 'selector' ? component.selectors.join(', ') : component.name} (${component.count})`
+          `${nameOrSelector === 'selector' ? component.selectors.join(', ') : component.name}`
         );
+        const labelCount = createLabel(`${id}-count`, `${component.count}`);
 
         label.addEventListener('mouseenter', () => {
           hoveredLabel = label;
@@ -300,6 +339,7 @@ function onDOMContentLoaded() {
 
         mainDiv.appendChild(prefixCb);
         mainDiv.appendChild(label);
+        mainDiv.appendChild(labelCount);
         mainDiv.appendChild(changeDetectionEl);
         mainDiv.appendChild(inputColor);
         return mainDiv;
