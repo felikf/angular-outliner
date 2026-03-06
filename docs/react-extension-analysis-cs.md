@@ -50,3 +50,20 @@ Byla přidána **nová samostatná Chrome extension varianta pro React** ve slo�
 - zvýraznění memoizovaných komponent v Mermaid grafu.
 
 Původní Angular rozšíření je ponecháno beze změn.
+
+## 4) Scaffold + build pipeline pro React rozšíření
+
+Nově je React varianta připravena ve stejné struktuře jako původní Angular extension:
+
+- `react-extension/src` (TypeScript logika pro content/popup)
+- `react-extension/public` (manifest + HTML/CSS)
+- `react-extension/config` (webpack common/dev/prod)
+- `react-extension/dist` (build artefakt pro načtení do Chrome)
+
+Použité npm skripty (z rootu repa):
+
+- `npm run react-ext:start` – vývojový watch build
+- `npm run react-ext:build` – produkční build
+- `npm run react-ext:clean` – vyčištění `react-extension/dist`
+
+Detailní lokální postup je v `react-extension/README.md`.

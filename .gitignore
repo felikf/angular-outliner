@@ -2,3 +2,5 @@
 /dist
 .vscode/*
 /.idea
+
+/react-extension/dist

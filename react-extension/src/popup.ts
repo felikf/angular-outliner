@@ -1,39 +1,70 @@
+interface PrefixItem {
+  prefix: string;
+  count: number;
+  enabled: boolean;
+  color: string;
+}
+
+interface ComponentItem {
+  name: string;
+  count: number;
+  selectors?: string[];
+  memoized?: boolean;
+  enabled: boolean;
+  color: string;
+}
+
+interface TreeNode {
+  id: string;
+  name: string;
+  children: TreeNode[];
+  detail: {
+    memoized?: boolean;
+  } | null;
+}
+
+interface FindResult {
+  isReact: boolean;
+  prefixes: PrefixItem[];
+  components: ComponentItem[];
+  root: TreeNode;
+}
+
 const COLORS = ['#60a5fa', '#a78bfa', '#34d399', '#f472b6', '#f59e0b', '#22d3ee', '#fb7185'];
 
 const state = {
-  prefixes: [],
-  components: [],
-  root: null,
-  sort: 'name',
+  prefixes: [] as PrefixItem[],
+  components: [] as ComponentItem[],
+  root: null as TreeNode | null,
+  sort: 'name' as 'name' | 'count',
   filter: '',
-  labelMode: 'name',
-  labelPosition: 'topLeft',
+  labelMode: 'name' as 'name' | 'selector',
+  labelPosition: 'topLeft' as 'topLeft' | 'topRight',
   coverEnabled: false
 };
 
-const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-const byCount = (a, b) => b.count - a.count || byName(a, b);
+const byName = (a: ComponentItem, b: ComponentItem) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+const byCount = (a: ComponentItem, b: ComponentItem) => b.count - a.count || byName(a, b);
 
-const $ = id => document.getElementById(id);
+const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
-async function queryActiveTab() {
+async function queryActiveTab(): Promise<chrome.tabs.Tab> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab;
 }
 
-async function send(type, payload) {
+async function send<T = any>(type: string, payload?: any): Promise<T> {
   const tab = await queryActiveTab();
-  return chrome.tabs.sendMessage(tab.id, { type, payload });
+  return chrome.tabs.sendMessage(tab.id!, { type, payload });
 }
 
-function randomColor(seed) {
+function randomColor(seed: string): string {
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
-  const fromSeed = `#${(hash & 0x00ffffff).toString(16).padStart(6, '0')}`;
-  return fromSeed;
+  return `#${(hash & 0x00ffffff).toString(16).padStart(6, '0')}`;
 }
 
-function createRow({ className = 'row', checked, label, right, color, onCheck, onColor }) {
+function createRow({ className = 'row', checked, label, right, color, onCheck, onColor }: any): HTMLElement {
   const row = document.createElement('label');
   row.className = className;
 
@@ -57,16 +88,16 @@ function createRow({ className = 'row', checked, label, right, color, onCheck, o
   return row;
 }
 
-function updateSummary() {
+function updateSummary(): void {
   const enabled = state.components.filter(c => c.enabled).length;
   $('summary').textContent = `${state.components.length} komponent, aktivních ${enabled}`;
 }
 
-function buildMermaid(node) {
+function buildMermaid(node: TreeNode): string {
   const lines = ['flowchart TD', 'classDef memoClass fill:#2e1065,stroke:#a78bfa,stroke-width:2px,color:#ede9fe;'];
-  const memoNodes = [];
+  const memoNodes: string[] = [];
 
-  function walk(parent, current) {
+  function walk(parent: string, current: TreeNode): void {
     const currentId = `${current.name}-${current.id}`;
     lines.push(`${parent}[${parent}]-->${currentId}[${current.name}]`);
     if (current.detail?.memoized) memoNodes.push(currentId);
@@ -74,14 +105,11 @@ function buildMermaid(node) {
   }
 
   node.children.forEach(child => walk('Root', child));
-  if (memoNodes.length) {
-    lines.push(`class ${memoNodes.join(',')} memoClass`);
-  }
-
+  if (memoNodes.length) lines.push(`class ${memoNodes.join(',')} memoClass`);
   return lines.join('\n');
 }
 
-function renderPrefixes() {
+function renderPrefixes(): void {
   const host = $('prefixList');
   host.innerHTML = '';
 
@@ -92,11 +120,11 @@ function renderPrefixes() {
       label: pref.prefix,
       right: `<span class="badge">${pref.count}</span>`,
       color: pref.color,
-      onCheck: checked => {
+      onCheck: (checked: boolean) => {
         pref.enabled = checked;
         syncToPage();
       },
-      onColor: color => {
+      onColor: (color: string) => {
         pref.color = color;
         syncToPage();
       }
@@ -106,7 +134,7 @@ function renderPrefixes() {
   });
 }
 
-function renderComponents() {
+function renderComponents(): void {
   const host = $('componentList');
   host.innerHTML = '';
 
@@ -127,12 +155,12 @@ function renderComponents() {
       label,
       right: `<span class="badge">${component.count}</span> ${component.memoized ? '<span class="badge">memo</span>' : ''}`,
       color: component.color,
-      onCheck: checked => {
+      onCheck: (checked: boolean) => {
         component.enabled = checked;
         updateSummary();
         syncToPage();
       },
-      onColor: color => {
+      onColor: (color: string) => {
         component.color = color;
         syncToPage();
       }
@@ -144,14 +172,14 @@ function renderComponents() {
   updateSummary();
 }
 
-async function syncToPage() {
+async function syncToPage(): Promise<void> {
   await chrome.storage.local.set({
     reactOutlinerCoverEnabled: state.coverEnabled,
     reactOutlinerLabelMode: state.labelMode,
     reactOutlinerLabelPosition: state.labelPosition
   });
 
-  send('togglePrefix', {
+  await send('togglePrefix', {
     prefixes: state.prefixes,
     components: state.components,
     textPosition: state.labelPosition,
@@ -160,9 +188,9 @@ async function syncToPage() {
   });
 }
 
-function wireEvents() {
-  $('componentFilter').addEventListener('input', event => {
-    state.filter = event.target.value;
+function wireEvents(): void {
+  ($('componentFilter') as HTMLInputElement).addEventListener('input', event => {
+    state.filter = (event.target as HTMLInputElement).value;
     renderComponents();
     syncToPage();
   });
@@ -181,67 +209,65 @@ function wireEvents() {
     renderComponents();
   });
 
-  $('selectAll').addEventListener('change', event => {
-    const shouldEnable = Boolean(event.target.checked);
+  ($('selectAll') as HTMLInputElement).addEventListener('change', event => {
+    const shouldEnable = Boolean((event.target as HTMLInputElement).checked);
     const matcher = state.filter.trim().toLowerCase();
 
     state.components.forEach(component => {
       const target = state.labelMode === 'selector' ? (component.selectors || []).join(', ') : component.name;
-      if (!matcher || target.toLowerCase().includes(matcher)) {
-        component.enabled = shouldEnable;
-      }
+      if (!matcher || target.toLowerCase().includes(matcher)) component.enabled = shouldEnable;
     });
 
     renderComponents();
     syncToPage();
   });
 
-  $('labelMode').addEventListener('change', event => {
-    state.labelMode = event.target.value;
+  ($('labelMode') as HTMLSelectElement).addEventListener('change', event => {
+    state.labelMode = (event.target as HTMLSelectElement).value as 'name' | 'selector';
     renderComponents();
     syncToPage();
   });
 
-  $('labelPosition').addEventListener('change', event => {
-    state.labelPosition = event.target.value;
+  ($('labelPosition') as HTMLSelectElement).addEventListener('change', event => {
+    state.labelPosition = (event.target as HTMLSelectElement).value as 'topLeft' | 'topRight';
     syncToPage();
   });
 
-  $('coverEnabled').addEventListener('change', event => {
-    state.coverEnabled = Boolean(event.target.checked);
+  ($('coverEnabled') as HTMLInputElement).addEventListener('change', event => {
+    state.coverEnabled = Boolean((event.target as HTMLInputElement).checked);
     syncToPage();
   });
 }
 
-async function init() {
+async function init(): Promise<void> {
   wireEvents();
 
-  const [saved, angularResult] = await Promise.all([
+  const [saved, result] = await Promise.all([
     chrome.storage.local.get(['reactOutlinerCoverEnabled', 'reactOutlinerLabelMode', 'reactOutlinerLabelPosition']),
-    send('findReactComponents')
+    send<FindResult>('findReactComponents')
   ]);
 
-  if (!angularResult?.isReact) {
+  if (!result?.isReact) {
     $('error').textContent = 'Na této stránce nebyl nalezen React root. Otevři localhost React appku v development režimu.';
     return;
   }
 
   state.coverEnabled = Boolean(saved.reactOutlinerCoverEnabled);
-  state.labelMode = saved.reactOutlinerLabelMode || 'name';
-  state.labelPosition = saved.reactOutlinerLabelPosition || 'topLeft';
+  state.labelMode = (saved.reactOutlinerLabelMode as 'name' | 'selector') || 'name';
+  state.labelPosition = (saved.reactOutlinerLabelPosition as 'topLeft' | 'topRight') || 'topLeft';
 
-  $('coverEnabled').checked = state.coverEnabled;
-  $('labelMode').value = state.labelMode;
-  $('labelPosition').value = state.labelPosition;
+  ( $('coverEnabled') as HTMLInputElement).checked = state.coverEnabled;
+  ( $('labelMode') as HTMLSelectElement).value = state.labelMode;
+  ( $('labelPosition') as HTMLSelectElement).value = state.labelPosition;
 
-  state.root = angularResult.root;
-  state.prefixes = angularResult.prefixes.map((prefix, index) => ({
+  state.root = result.root;
+  state.prefixes = result.prefixes.map((prefix, index) => ({
     ...prefix,
     color: COLORS[index] || randomColor(prefix.prefix),
     enabled: true
   }));
 
-  state.components = angularResult.components.map((component, index) => ({
+  state.components = result.components.map((component, index) => ({
     ...component,
     color: COLORS[index] || randomColor(component.name),
     enabled: false
@@ -249,10 +275,10 @@ async function init() {
 
   renderPrefixes();
   renderComponents();
-  $('mermaid').value = buildMermaid(state.root);
+  ( $('mermaid') as HTMLTextAreaElement).value = buildMermaid(state.root);
   $('controls').classList.remove('hidden');
 
-  syncToPage();
+  await syncToPage();
 }
 
 init().catch(err => {
