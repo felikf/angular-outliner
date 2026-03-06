@@ -242,8 +242,13 @@ function wireEvents(): void {
 async function init(): Promise<void> {
   wireEvents();
 
-  const pingResult = await send<{ ok: boolean; source?: string; error?: string }>('pingReactTracer');
-  console.log('[react-outliner/popup] Ping tracer result', pingResult);
+  let pingResult: { ok?: boolean; source?: string; error?: string } | null = null;
+  try {
+    pingResult = await send<{ ok: boolean; source?: string; error?: string }>('pingReactTracer');
+    console.log('[react-outliner/popup] Ping tracer result', pingResult);
+  } catch (error) {
+    console.warn('[react-outliner/popup] Ping tracer failed', error);
+  }
 
   const [saved, result] = await Promise.all([
     chrome.storage.local.get(['reactOutlinerCoverEnabled', 'reactOutlinerLabelMode', 'reactOutlinerLabelPosition']),
@@ -254,7 +259,7 @@ async function init(): Promise<void> {
 
   if (!result?.isReact) {
     $('error').textContent =
-      'Na této stránce nebyl nalezen React root. Zkontroluj v konzoli logy [react-outliner/content] a [react-outliner/page].';
+      `Na této stránce nebyl nalezen React root. Ping: ${JSON.stringify(pingResult)}. Zkontroluj logy [react-outliner/content] a [react-outliner/page].`;
     return;
   }
 

@@ -16,6 +16,17 @@
         "js/content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*"
+      ],
+      "js": [
+        "js/react-tracer.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
     }
   ],
   "action": {

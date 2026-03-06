@@ -7,24 +7,13 @@ function log(...args: any[]) {
   console.log(LOG_PREFIX, ...args);
 }
 
-const script = document.createElement('script');
-script.src = chrome.runtime.getURL('js/react-tracer.js');
-(document.head || document.documentElement).appendChild(script);
-
-script.onload = () => {
-  log('Injected page tracer script', { src: script.src, url: location.href });
-  script.remove();
-};
-
-script.onerror = () => {
-  log('Failed to inject page tracer script', { src: script.src, url: location.href });
-};
-
 const HANDLERS: Record<string, (payload?: any) => Promise<any>> = {
   findReactComponents: () => promisedPostMessage.postMessage('findReactComponents'),
   togglePrefix: payload => promisedPostMessage.postMessage('togglePrefix', payload),
-  pingReactTracer: () => promisedPostMessage.postMessage('ping')
+  pingReactTracer: () => promisedPostMessage.postMessage('ping', undefined, 2000)
 };
+
+log('Content bridge initialized', { url: location.href });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   const handler = HANDLERS[msg.type];
