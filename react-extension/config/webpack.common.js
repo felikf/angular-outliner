@@ -6,6 +6,7 @@ const rootDir = path.join(__dirname, '..');
 module.exports = {
   entry: {
     content: path.join(rootDir, 'src/content.ts'),
+    'react-tracer': path.join(rootDir, 'src/react-tracer.ts'),
     popup: path.join(rootDir, 'src/popup.ts')
   },
   output: {

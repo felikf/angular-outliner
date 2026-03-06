@@ -242,13 +242,19 @@ function wireEvents(): void {
 async function init(): Promise<void> {
   wireEvents();
 
+  const pingResult = await send<{ ok: boolean; source?: string; error?: string }>('pingReactTracer');
+  console.log('[react-outliner/popup] Ping tracer result', pingResult);
+
   const [saved, result] = await Promise.all([
     chrome.storage.local.get(['reactOutlinerCoverEnabled', 'reactOutlinerLabelMode', 'reactOutlinerLabelPosition']),
     send<FindResult>('findReactComponents')
   ]);
 
+  console.log('[react-outliner/popup] findReactComponents result', result);
+
   if (!result?.isReact) {
-    $('error').textContent = 'Na této stránce nebyl nalezen React root. Otevři localhost React appku v development režimu.';
+    $('error').textContent =
+      'Na této stránce nebyl nalezen React root. Zkontroluj v konzoli logy [react-outliner/content] a [react-outliner/page].';
     return;
   }
 
