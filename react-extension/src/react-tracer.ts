@@ -18,6 +18,8 @@
     detail: {
       selector: string[];
       memoized: boolean;
+      familyId: string;
+      familyLabel: string;
     } | null;
   }
 
@@ -25,14 +27,16 @@
     id: string;
     name: string;
     selector: string;
-    prefix: string;
     rect: DOMRect;
     level: number;
     memoized: boolean;
+    familyId: string;
+    familyLabel: string;
   }
 
-  interface PrefixItem {
-    prefix: string;
+  interface FamilyItem {
+    id: string;
+    label: string;
     count: number;
     enabled: boolean;
     color: string;
@@ -43,16 +47,23 @@
     count: number;
     selectors: string[];
     memoized: boolean;
+    familyId: string;
+    familyLabel: string;
     enabled: boolean;
     color: string;
   }
 
   interface TogglePayload {
-    prefixes: PrefixItem[];
+    families: FamilyItem[];
     components: ComponentItem[];
     textPosition: 'topLeft' | 'topRight';
-    nameOrSelector: 'name' | 'selector';
     coverEnabled: boolean;
+    previewComponentName?: string | null;
+  }
+
+  interface FamilyInfo {
+    id: string;
+    label: string;
   }
 
   const TAGS = {
@@ -66,19 +77,50 @@
 
   const state = {
     nodes: [] as OverlayNode[],
-    prefixes: [] as PrefixItem[],
+    families: [] as FamilyItem[],
     components: [] as ComponentItem[],
     labelPosition: 'topLeft' as 'topLeft' | 'topRight',
-    labelMode: 'name' as 'name' | 'selector',
     coverEnabled: false,
-    canvas: null as HTMLCanvasElement | null
+    canvas: null as HTMLCanvasElement | null,
+    previewComponentName: null as string | null
   };
-
 
   const LOG_PREFIX = '[react-outliner/page]';
 
   function log(...args: any[]) {
     console.log(LOG_PREFIX, ...args);
+  }
+
+  function sanitizeLabel(value: string): string {
+    return value.replace(/[^a-zA-Z0-9@._/-]/g, '_');
+  }
+
+  function getTypeFromFiber(fiber: FiberNode): any {
+    return fiber.type || fiber.elementType;
+  }
+
+  function getFamilyFromType(type: any): FamilyInfo {
+    const fileName = type?._debugSource?.fileName as string | undefined;
+
+    if (!fileName) {
+      return { id: 'unknown', label: 'Unknown / runtime' };
+    }
+
+    const normalized = fileName.replace(/\\/g, '/');
+    const nodeModulesMarker = '/node_modules/';
+    const idx = normalized.indexOf(nodeModulesMarker);
+
+    if (idx >= 0) {
+      const rel = normalized.substring(idx + nodeModulesMarker.length);
+      const parts = rel.split('/').filter(Boolean);
+      if (parts.length) {
+        const pkg = parts[0].startsWith('@') && parts.length > 1 ? `${parts[0]}/${parts[1]}` : parts[0];
+        return { id: `pkg:${sanitizeLabel(pkg)}`, label: pkg };
+      }
+      return { id: 'pkg:node_modules', label: 'node_modules' };
+    }
+
+    return { id: 'app:local', label: 'Application (local source)' };
   }
 
   function getReactHook(): any {
@@ -91,9 +133,9 @@
   }
 
   function getNameFromFiber(fiber: FiberNode): string | null {
-    const type = fiber.type || fiber.elementType;
+    const type = getTypeFromFiber(fiber);
     if (!type) return null;
-    if (typeof type === 'string') return type;
+    if (typeof type === 'string') return null;
     return type.displayName || type.name || fiber.elementType?.displayName || fiber.elementType?.name || null;
   }
 
@@ -133,7 +175,7 @@
     acc: {
       nodes: OverlayNode[];
       counter: number;
-      prefixStats: Map<string, number>;
+      familyStats: Map<string, Omit<FamilyItem, 'enabled' | 'color'>>;
       componentStats: Map<string, Omit<ComponentItem, 'enabled' | 'color'>>;
     },
     level = 0
@@ -148,30 +190,42 @@
         if (name) {
           const hostElement = findHostNode(current.child);
           if (hostElement) {
+            const componentType = getTypeFromFiber(current);
+            const family = getFamilyFromType(componentType);
             const id = `${name}-${acc.counter++}`;
             const selector = hostElement.tagName.toLowerCase();
-            const prefix = selector.split('-')[0] || selector;
             const rect = hostElement.getBoundingClientRect();
 
             const node: OverlayNode = {
               id,
               name,
               selector,
-              prefix,
               rect,
               level,
-              memoized: isMemoizedFiber(current)
+              memoized: isMemoizedFiber(current),
+              familyId: family.id,
+              familyLabel: family.label
             };
 
             acc.nodes.push(node);
-            const existing = acc.componentStats.get(name);
-            acc.componentStats.set(name, {
-              name,
-              count: (existing?.count || 0) + 1,
-              selectors: Array.from(new Set([...(existing?.selectors || []), selector])),
-              memoized: existing?.memoized || node.memoized
+
+            const familyExisting = acc.familyStats.get(family.id);
+            acc.familyStats.set(family.id, {
+              id: family.id,
+              label: family.label,
+              count: (familyExisting?.count || 0) + 1
             });
-            acc.prefixStats.set(prefix, (acc.prefixStats.get(prefix) || 0) + 1);
+
+            const componentKey = `${family.id}::${name}`;
+            const componentExisting = acc.componentStats.get(componentKey);
+            acc.componentStats.set(componentKey, {
+              name,
+              familyId: family.id,
+              familyLabel: family.label,
+              count: (componentExisting?.count || 0) + 1,
+              selectors: Array.from(new Set([...(componentExisting?.selectors || []), selector])),
+              memoized: componentExisting?.memoized || node.memoized
+            });
 
             const treeNode: TreeNode = {
               id,
@@ -179,7 +233,9 @@
               children: [],
               detail: {
                 selector: [selector],
-                memoized: node.memoized
+                memoized: node.memoized,
+                familyId: family.id,
+                familyLabel: family.label
               }
             };
             parentTreeNode.children.push(treeNode);
@@ -268,13 +324,18 @@
     const roots = getAllRoots();
 
     if (!hookPresent && !roots.length) {
-      return { isReact: false, prefixes: [], components: [], root: { id: 'root', name: 'Root', children: [], detail: null } };
+      return {
+        isReact: false,
+        families: [],
+        components: [],
+        root: { id: 'root', name: 'Root', children: [], detail: null }
+      };
     }
 
     const acc = {
       nodes: [] as OverlayNode[],
       counter: 0,
-      prefixStats: new Map<string, number>(),
+      familyStats: new Map<string, Omit<FamilyItem, 'enabled' | 'color'>>(),
       componentStats: new Map<string, Omit<ComponentItem, 'enabled' | 'color'>>()
     };
 
@@ -287,10 +348,9 @@
 
     state.nodes = acc.nodes;
 
-    const prefixes: PrefixItem[] = Array.from(acc.prefixStats.entries()).map(([prefix, count]) => ({
-      prefix,
-      count,
-      enabled: true,
+    const families: FamilyItem[] = Array.from(acc.familyStats.values()).map(family => ({
+      ...family,
+      enabled: false,
       color: '#60a5fa'
     }));
 
@@ -300,9 +360,16 @@
       color: '#a78bfa'
     }));
 
+    log('findReactComponents result', {
+      roots: roots.length,
+      nodes: state.nodes.length,
+      families: families.length,
+      components: components.length
+    });
+
     return {
       isReact: true,
-      prefixes,
+      families,
       components,
       root: rootTree
     };
@@ -354,34 +421,41 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    const prefixMap = new Map(state.prefixes.map(item => [item.prefix, item]));
-    const componentMap = new Map(state.components.map(item => [item.name, item]));
+    const familyMap = new Map(state.families.map(item => [item.id, item]));
+    const componentMap = new Map(state.components.map(item => [`${item.familyId}::${item.name}`, item]));
 
     state.nodes
       .slice()
       .sort((a, b) => a.level - b.level)
       .forEach(node => {
-        const prefixRule = prefixMap.get(node.prefix);
-        const componentRule = componentMap.get(node.name);
-        if (!prefixRule?.enabled && !componentRule?.enabled) return;
+        const familyRule = familyMap.get(node.familyId);
+        const componentRule = componentMap.get(`${node.familyId}::${node.name}`);
+        const previewMatches = state.previewComponentName && node.name === state.previewComponentName;
 
-        const color = componentRule?.enabled ? componentRule.color : prefixRule?.color || '#60a5fa';
+        if (!familyRule?.enabled && !componentRule?.enabled && !previewMatches) return;
+
+        const color = previewMatches
+          ? '#22d3ee'
+          : componentRule?.enabled
+            ? componentRule.color
+            : familyRule?.color || '#60a5fa';
+
         const rect = node.rect;
 
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = previewMatches ? 2.5 : 1.5;
         ctx.strokeRect(rect.left, rect.top, rect.width, rect.height);
 
-        drawLabel(ctx, state.labelMode === 'selector' ? node.selector : node.name, rect.left, rect.top, rect.width, color);
+        drawLabel(ctx, node.name, rect.left, rect.top, rect.width, color);
       });
   }
 
   function togglePrefix(payload: TogglePayload) {
-    state.prefixes = payload.prefixes || [];
+    state.families = payload.families || [];
     state.components = payload.components || [];
     state.labelPosition = payload.textPosition || 'topLeft';
-    state.labelMode = payload.nameOrSelector || 'name';
     state.coverEnabled = Boolean(payload.coverEnabled);
+    state.previewComponentName = payload.previewComponentName || null;
     drawOverlay();
     return { ok: true };
   }
@@ -405,8 +479,6 @@
 
     try {
       const result = (HANDLERS as any)[data.action](data.payload);
-      log('Handled bridge action', { action: data.action, url: location.href });
-
       const messageToSend = [
         id,
         {
@@ -414,7 +486,6 @@
           payload: result
         }
       ];
-
       window.postMessage(messageToSend, '*');
     } catch (error: any) {
       log('Bridge action failed', { action: data.action, error: error?.message || String(error) });

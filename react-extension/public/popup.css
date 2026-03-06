@@ -132,8 +132,8 @@ textarea {
 
 .row small { color: var(--muted); }
 
-.row-prefix {
-  grid-template-columns: auto 1fr auto;
+.row-family {
+  grid-template-columns: auto 1fr auto auto;
 }
 
 .sort {

@@ -1,5 +1,6 @@
-interface PrefixItem {
-  prefix: string;
+interface FamilyItem {
+  id: string;
+  label: string;
   count: number;
   enabled: boolean;
   color: string;
@@ -10,6 +11,8 @@ interface ComponentItem {
   count: number;
   selectors?: string[];
   memoized?: boolean;
+  familyId: string;
+  familyLabel: string;
   enabled: boolean;
   color: string;
 }
@@ -20,12 +23,13 @@ interface TreeNode {
   children: TreeNode[];
   detail: {
     memoized?: boolean;
+    familyLabel?: string;
   } | null;
 }
 
 interface FindResult {
   isReact: boolean;
-  prefixes: PrefixItem[];
+  families: FamilyItem[];
   components: ComponentItem[];
   root: TreeNode;
 }
@@ -33,14 +37,14 @@ interface FindResult {
 const COLORS = ['#60a5fa', '#a78bfa', '#34d399', '#f472b6', '#f59e0b', '#22d3ee', '#fb7185'];
 
 const state = {
-  prefixes: [] as PrefixItem[],
+  families: [] as FamilyItem[],
   components: [] as ComponentItem[],
   root: null as TreeNode | null,
   sort: 'name' as 'name' | 'count',
   filter: '',
-  labelMode: 'name' as 'name' | 'selector',
   labelPosition: 'topLeft' as 'topLeft' | 'topRight',
-  coverEnabled: false
+  coverEnabled: false,
+  previewComponentName: null as string | null
 };
 
 const byName = (a: ComponentItem, b: ComponentItem) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -89,8 +93,9 @@ function createRow({ className = 'row', checked, label, right, color, onCheck, o
 }
 
 function updateSummary(): void {
-  const enabled = state.components.filter(c => c.enabled).length;
-  $('summary').textContent = `${state.components.length} komponent, aktivních ${enabled}`;
+  const enabledComponents = state.components.filter(c => c.enabled).length;
+  const enabledFamilies = state.families.filter(f => f.enabled).length;
+  $('summary').textContent = `${state.components.length} komponent, aktivní: ${enabledComponents} | rodiny: ${enabledFamilies}`;
 }
 
 function buildMermaid(node: TreeNode): string {
@@ -109,29 +114,33 @@ function buildMermaid(node: TreeNode): string {
   return lines.join('\n');
 }
 
-function renderPrefixes(): void {
-  const host = $('prefixList');
+function renderFamilies(): void {
+  const host = $('familyList');
   host.innerHTML = '';
 
-  state.prefixes.forEach(pref => {
-    const row = createRow({
-      className: 'row row-prefix',
-      checked: pref.enabled,
-      label: pref.prefix,
-      right: `<span class="badge">${pref.count}</span>`,
-      color: pref.color,
-      onCheck: (checked: boolean) => {
-        pref.enabled = checked;
-        syncToPage();
-      },
-      onColor: (color: string) => {
-        pref.color = color;
-        syncToPage();
-      }
-    });
+  state.families
+    .slice()
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .forEach(family => {
+      const row = createRow({
+        className: 'row row-family',
+        checked: family.enabled,
+        label: family.label,
+        right: `<span class="badge">${family.count}</span>`,
+        color: family.color,
+        onCheck: (checked: boolean) => {
+          family.enabled = checked;
+          renderComponents();
+          syncToPage();
+        },
+        onColor: (color: string) => {
+          family.color = color;
+          syncToPage();
+        }
+      });
 
-    host.append(row);
-  });
+      host.append(row);
+    });
 }
 
 function renderComponents(): void {
@@ -143,17 +152,15 @@ function renderComponents(): void {
 
   const filtered = sorted.filter(component => {
     if (!matcher) return true;
-    const target = state.labelMode === 'selector' ? (component.selectors || []).join(', ') : component.name;
-    return target.toLowerCase().includes(matcher);
+    return component.name.toLowerCase().includes(matcher) || component.familyLabel.toLowerCase().includes(matcher);
   });
 
   filtered.forEach(component => {
-    const label = state.labelMode === 'selector' ? (component.selectors || []).join(', ') || component.name : component.name;
-
+    const familyEnabled = !!state.families.find(f => f.id === component.familyId)?.enabled;
     const row = createRow({
-      checked: component.enabled,
-      label,
-      right: `<span class="badge">${component.count}</span> ${component.memoized ? '<span class="badge">memo</span>' : ''}`,
+      checked: component.enabled || familyEnabled,
+      label: component.name,
+      right: `<span class="badge">${component.count}</span> <span class="badge">${component.familyLabel}</span>`,
       color: component.color,
       onCheck: (checked: boolean) => {
         component.enabled = checked;
@@ -166,6 +173,16 @@ function renderComponents(): void {
       }
     });
 
+    row.addEventListener('mouseenter', () => {
+      state.previewComponentName = component.name;
+      syncToPage();
+    });
+
+    row.addEventListener('mouseleave', () => {
+      state.previewComponentName = null;
+      syncToPage();
+    });
+
     host.append(row);
   });
 
@@ -175,16 +192,15 @@ function renderComponents(): void {
 async function syncToPage(): Promise<void> {
   await chrome.storage.local.set({
     reactOutlinerCoverEnabled: state.coverEnabled,
-    reactOutlinerLabelMode: state.labelMode,
     reactOutlinerLabelPosition: state.labelPosition
   });
 
   await send('togglePrefix', {
-    prefixes: state.prefixes,
+    families: state.families,
     components: state.components,
     textPosition: state.labelPosition,
-    nameOrSelector: state.labelMode,
-    coverEnabled: state.coverEnabled
+    coverEnabled: state.coverEnabled,
+    previewComponentName: state.previewComponentName
   });
 }
 
@@ -192,7 +208,6 @@ function wireEvents(): void {
   ($('componentFilter') as HTMLInputElement).addEventListener('input', event => {
     state.filter = (event.target as HTMLInputElement).value;
     renderComponents();
-    syncToPage();
   });
 
   $('sortByName').addEventListener('click', () => {
@@ -214,16 +229,11 @@ function wireEvents(): void {
     const matcher = state.filter.trim().toLowerCase();
 
     state.components.forEach(component => {
-      const target = state.labelMode === 'selector' ? (component.selectors || []).join(', ') : component.name;
-      if (!matcher || target.toLowerCase().includes(matcher)) component.enabled = shouldEnable;
+      if (!matcher || component.name.toLowerCase().includes(matcher) || component.familyLabel.toLowerCase().includes(matcher)) {
+        component.enabled = shouldEnable;
+      }
     });
 
-    renderComponents();
-    syncToPage();
-  });
-
-  ($('labelMode') as HTMLSelectElement).addEventListener('change', event => {
-    state.labelMode = (event.target as HTMLSelectElement).value as 'name' | 'selector';
     renderComponents();
     syncToPage();
   });
@@ -242,51 +252,38 @@ function wireEvents(): void {
 async function init(): Promise<void> {
   wireEvents();
 
-  let pingResult: { ok?: boolean; source?: string; error?: string } | null = null;
-  try {
-    pingResult = await send<{ ok: boolean; source?: string; error?: string }>('pingReactTracer');
-    console.log('[react-outliner/popup] Ping tracer result', pingResult);
-  } catch (error) {
-    console.warn('[react-outliner/popup] Ping tracer failed', error);
-  }
-
   const [saved, result] = await Promise.all([
-    chrome.storage.local.get(['reactOutlinerCoverEnabled', 'reactOutlinerLabelMode', 'reactOutlinerLabelPosition']),
+    chrome.storage.local.get(['reactOutlinerCoverEnabled', 'reactOutlinerLabelPosition']),
     send<FindResult>('findReactComponents')
   ]);
 
-  console.log('[react-outliner/popup] findReactComponents result', result);
-
   if (!result?.isReact) {
-    $('error').textContent =
-      `Na této stránce nebyl nalezen React root. Ping: ${JSON.stringify(pingResult)}. Zkontroluj logy [react-outliner/content] a [react-outliner/page].`;
+    $('error').textContent = 'Na této stránce nebyl nalezen React root.';
     return;
   }
 
   state.coverEnabled = Boolean(saved.reactOutlinerCoverEnabled);
-  state.labelMode = (saved.reactOutlinerLabelMode as 'name' | 'selector') || 'name';
   state.labelPosition = (saved.reactOutlinerLabelPosition as 'topLeft' | 'topRight') || 'topLeft';
 
-  ( $('coverEnabled') as HTMLInputElement).checked = state.coverEnabled;
-  ( $('labelMode') as HTMLSelectElement).value = state.labelMode;
-  ( $('labelPosition') as HTMLSelectElement).value = state.labelPosition;
+  ($('coverEnabled') as HTMLInputElement).checked = state.coverEnabled;
+  ($('labelPosition') as HTMLSelectElement).value = state.labelPosition;
 
   state.root = result.root;
-  state.prefixes = result.prefixes.map((prefix, index) => ({
-    ...prefix,
-    color: COLORS[index] || randomColor(prefix.prefix),
-    enabled: true
+  state.families = result.families.map((family, index) => ({
+    ...family,
+    color: COLORS[index] || randomColor(family.id),
+    enabled: false
   }));
 
   state.components = result.components.map((component, index) => ({
     ...component,
-    color: COLORS[index] || randomColor(component.name),
+    color: COLORS[index] || randomColor(`${component.familyId}-${component.name}`),
     enabled: false
   }));
 
-  renderPrefixes();
+  renderFamilies();
   renderComponents();
-  ( $('mermaid') as HTMLTextAreaElement).value = buildMermaid(state.root);
+  ($('mermaid') as HTMLTextAreaElement).value = buildMermaid(state.root);
   $('controls').classList.remove('hidden');
 
   await syncToPage();
