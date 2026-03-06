@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
 :root {
   color-scheme: light;
   --bg: #0b1020;
@@ -19,7 +21,7 @@ body {
   width: 520px;
   background: radial-gradient(circle at top right, #1b2552, #0b1020 60%);
   color: var(--text);
-  font: 13px/1.4 Inter, Segoe UI, Roboto, sans-serif;
+  font: 13px/1.4 'Roboto', 'Segoe UI', sans-serif;
 }
 
 .app-shell {
@@ -134,6 +136,14 @@ textarea {
 
 .row-family {
   grid-template-columns: auto 1fr auto auto;
+}
+
+.row-component {
+  grid-template-columns: auto auto 1fr auto auto;
+}
+
+.row-component input[type='radio'] {
+  accent-color: #22d3ee;
 }
 
 .sort {

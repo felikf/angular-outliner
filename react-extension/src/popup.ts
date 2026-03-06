@@ -9,7 +9,6 @@ interface FamilyItem {
 interface ComponentItem {
   name: string;
   count: number;
-  selectors?: string[];
   memoized?: boolean;
   familyId: string;
   familyLabel: string;
@@ -23,6 +22,7 @@ interface TreeNode {
   children: TreeNode[];
   detail: {
     memoized?: boolean;
+    familyId?: string;
     familyLabel?: string;
   } | null;
 }
@@ -44,7 +44,8 @@ const state = {
   filter: '',
   labelPosition: 'topLeft' as 'topLeft' | 'topRight',
   coverEnabled: false,
-  previewComponentName: null as string | null
+  previewComponentName: null as string | null,
+  selectedMermaidRootKey: ''
 };
 
 const byName = (a: ComponentItem, b: ComponentItem) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -68,27 +69,145 @@ function randomColor(seed: string): string {
   return `#${(hash & 0x00ffffff).toString(16).padStart(6, '0')}`;
 }
 
-function createRow({ className = 'row', checked, label, right, color, onCheck, onColor }: any): HTMLElement {
+function sanitizeMermaidToken(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_]/g, '_');
+}
+
+function safeLabel(value: string): string {
+  return value.replace(/[()]/g, '');
+}
+
+function componentKey(component: Pick<ComponentItem, 'familyId' | 'name'>): string {
+  return `${component.familyId}::${component.name}`;
+}
+
+function findMermaidRoot(node: TreeNode, selectedKey: string): TreeNode | null {
+  if (!selectedKey) return null;
+  const [selectedFamilyId, ...nameParts] = selectedKey.split('::');
+  const selectedName = nameParts.join('::');
+
+  const queue: TreeNode[] = [node];
+  while (queue.length) {
+    const current = queue.shift()!;
+    if (current.name === selectedName && current.detail?.familyId === selectedFamilyId) {
+      return current;
+    }
+    current.children.forEach(child => queue.push(child));
+  }
+
+  return null;
+}
+
+function updateMermaid(): void {
+  if (!state.root) return;
+  const mermaidRoot = findMermaidRoot(state.root, state.selectedMermaidRootKey) || state.root;
+  ($('mermaid') as HTMLTextAreaElement).value = buildMermaid(mermaidRoot);
+}
+
+function buildMermaid(node: TreeNode): string {
+  const lines = ['flowchart TD', 'classDef memoClass fill:#2e1065,stroke:#a78bfa,stroke-width:2px,color:#ede9fe;'];
+  const memoNodes: string[] = [];
+
+  function walk(parentId: string, parentLabel: string, current: TreeNode): void {
+    const currentId = `${sanitizeMermaidToken(current.name)}_${sanitizeMermaidToken(current.id)}`;
+    const currentLabel = safeLabel(current.name);
+    lines.push(`${parentId}[${parentLabel}] --> ${currentId}[${currentLabel}]`);
+    if (current.detail?.memoized) memoNodes.push(currentId);
+    current.children.forEach(child => walk(currentId, currentLabel, child));
+  }
+
+  const rootId = `${sanitizeMermaidToken(node.name)}_${sanitizeMermaidToken(node.id)}`;
+  const rootLabel = safeLabel(node.name || 'Root');
+  lines.push(`${rootId}[${rootLabel}]`);
+
+  node.children.forEach(child => walk(rootId, rootLabel, child));
+  if (memoNodes.length) lines.push(`class ${memoNodes.join(',')} memoClass`);
+
+  return lines.join('\n');
+}
+
+function createFamilyRow(family: FamilyItem): HTMLElement {
   const row = document.createElement('label');
-  row.className = className;
+  row.className = 'row row-family';
 
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
-  checkbox.checked = checked;
-  checkbox.addEventListener('change', () => onCheck(checkbox.checked));
+  checkbox.checked = family.enabled;
+  checkbox.addEventListener('change', () => {
+    family.enabled = checkbox.checked;
+    renderComponents();
+    updateSummary();
+    syncToPage();
+  });
 
   const text = document.createElement('span');
-  text.textContent = label;
+  text.textContent = family.label;
 
-  const rightEl = document.createElement('small');
-  rightEl.innerHTML = right || '';
+  const right = document.createElement('small');
+  right.innerHTML = `<span class="badge">${family.count}</span>`;
 
-  const colorEl = document.createElement('input');
-  colorEl.type = 'color';
-  colorEl.value = color;
-  colorEl.addEventListener('change', () => onColor(colorEl.value));
+  const color = document.createElement('input');
+  color.type = 'color';
+  color.value = family.color;
+  color.addEventListener('change', () => {
+    family.color = color.value;
+    syncToPage();
+  });
 
-  row.append(checkbox, text, rightEl, colorEl);
+  row.append(checkbox, text, right, color);
+  return row;
+}
+
+function createComponentRow(component: ComponentItem): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'row row-component';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = component.enabled;
+  checkbox.addEventListener('change', () => {
+    component.enabled = checkbox.checked;
+    updateSummary();
+    syncToPage();
+  });
+
+  const radio = document.createElement('input');
+  radio.type = 'radio';
+  radio.name = 'mermaid-root';
+  radio.checked = state.selectedMermaidRootKey === componentKey(component);
+  radio.title = 'Použít jako root Mermaid grafu';
+  radio.addEventListener('change', () => {
+    if (radio.checked) {
+      state.selectedMermaidRootKey = componentKey(component);
+      updateMermaid();
+    }
+  });
+
+  const name = document.createElement('span');
+  name.textContent = component.name;
+
+  const right = document.createElement('small');
+  right.innerHTML = `<span class="badge">${component.count}</span> <span class="badge">${component.familyLabel}</span>`;
+
+  const color = document.createElement('input');
+  color.type = 'color';
+  color.value = component.color;
+  color.addEventListener('change', () => {
+    component.color = color.value;
+    syncToPage();
+  });
+
+  row.addEventListener('mouseenter', () => {
+    state.previewComponentName = component.name;
+    syncToPage();
+  });
+
+  row.addEventListener('mouseleave', () => {
+    state.previewComponentName = null;
+    syncToPage();
+  });
+
+  row.append(checkbox, radio, name, right, color);
   return row;
 }
 
@@ -98,22 +217,6 @@ function updateSummary(): void {
   $('summary').textContent = `${state.components.length} komponent, aktivní: ${enabledComponents} | rodiny: ${enabledFamilies}`;
 }
 
-function buildMermaid(node: TreeNode): string {
-  const lines = ['flowchart TD', 'classDef memoClass fill:#2e1065,stroke:#a78bfa,stroke-width:2px,color:#ede9fe;'];
-  const memoNodes: string[] = [];
-
-  function walk(parent: string, current: TreeNode): void {
-    const currentId = `${current.name}-${current.id}`;
-    lines.push(`${parent}[${parent}]-->${currentId}[${current.name}]`);
-    if (current.detail?.memoized) memoNodes.push(currentId);
-    current.children.forEach(child => walk(currentId, child));
-  }
-
-  node.children.forEach(child => walk('Root', child));
-  if (memoNodes.length) lines.push(`class ${memoNodes.join(',')} memoClass`);
-  return lines.join('\n');
-}
-
 function renderFamilies(): void {
   const host = $('familyList');
   host.innerHTML = '';
@@ -121,26 +224,7 @@ function renderFamilies(): void {
   state.families
     .slice()
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
-    .forEach(family => {
-      const row = createRow({
-        className: 'row row-family',
-        checked: family.enabled,
-        label: family.label,
-        right: `<span class="badge">${family.count}</span>`,
-        color: family.color,
-        onCheck: (checked: boolean) => {
-          family.enabled = checked;
-          renderComponents();
-          syncToPage();
-        },
-        onColor: (color: string) => {
-          family.color = color;
-          syncToPage();
-        }
-      });
-
-      host.append(row);
-    });
+    .forEach(family => host.append(createFamilyRow(family)));
 }
 
 function renderComponents(): void {
@@ -155,44 +239,15 @@ function renderComponents(): void {
     return component.name.toLowerCase().includes(matcher) || component.familyLabel.toLowerCase().includes(matcher);
   });
 
-  filtered.forEach(component => {
-    const familyEnabled = !!state.families.find(f => f.id === component.familyId)?.enabled;
-    const row = createRow({
-      checked: component.enabled || familyEnabled,
-      label: component.name,
-      right: `<span class="badge">${component.count}</span> <span class="badge">${component.familyLabel}</span>`,
-      color: component.color,
-      onCheck: (checked: boolean) => {
-        component.enabled = checked;
-        updateSummary();
-        syncToPage();
-      },
-      onColor: (color: string) => {
-        component.color = color;
-        syncToPage();
-      }
-    });
-
-    row.addEventListener('mouseenter', () => {
-      state.previewComponentName = component.name;
-      syncToPage();
-    });
-
-    row.addEventListener('mouseleave', () => {
-      state.previewComponentName = null;
-      syncToPage();
-    });
-
-    host.append(row);
-  });
-
+  filtered.forEach(component => host.append(createComponentRow(component)));
   updateSummary();
 }
 
 async function syncToPage(): Promise<void> {
   await chrome.storage.local.set({
     reactOutlinerCoverEnabled: state.coverEnabled,
-    reactOutlinerLabelPosition: state.labelPosition
+    reactOutlinerLabelPosition: state.labelPosition,
+    reactOutlinerMermaidRoot: state.selectedMermaidRootKey
   });
 
   await send('togglePrefix', {
@@ -253,7 +308,7 @@ async function init(): Promise<void> {
   wireEvents();
 
   const [saved, result] = await Promise.all([
-    chrome.storage.local.get(['reactOutlinerCoverEnabled', 'reactOutlinerLabelPosition']),
+    chrome.storage.local.get(['reactOutlinerCoverEnabled', 'reactOutlinerLabelPosition', 'reactOutlinerMermaidRoot']),
     send<FindResult>('findReactComponents')
   ]);
 
@@ -281,9 +336,15 @@ async function init(): Promise<void> {
     enabled: false
   }));
 
+  if (saved.reactOutlinerMermaidRoot && state.components.some(c => componentKey(c) === saved.reactOutlinerMermaidRoot)) {
+    state.selectedMermaidRootKey = saved.reactOutlinerMermaidRoot;
+  } else if (state.components.length) {
+    state.selectedMermaidRootKey = componentKey(state.components[0]);
+  }
+
   renderFamilies();
   renderComponents();
-  ($('mermaid') as HTMLTextAreaElement).value = buildMermaid(state.root);
+  updateMermaid();
   $('controls').classList.remove('hidden');
 
   await syncToPage();

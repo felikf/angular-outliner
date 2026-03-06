@@ -99,28 +99,70 @@
     return fiber.type || fiber.elementType;
   }
 
-  function getFamilyFromType(type: any): FamilyInfo {
-    const fileName = type?._debugSource?.fileName as string | undefined;
+  function inferFamilyFromName(componentName: string): FamilyInfo | null {
+    if (!componentName) return null;
 
-    if (!fileName) {
-      return { id: 'unknown', label: 'Unknown / runtime' };
-    }
+    const rules: Array<[RegExp, string]> = [
+      [/^Mui[A-Z]/, '@mui'],
+      [/^(Fa|Hi|Io|Md|Ai|Bi|Bs|Ri|Tb|Pi)[A-Z]/, 'react-icons'],
+      [/^Router|^Route|^Link|^NavLink|^Outlet/, 'react-router'],
+      [/^Formik|^Field|^ErrorMessage/, 'formik'],
+      [/^Query|^Mutation|^Hydration|^ReactQuery/, '@tanstack/react-query']
+    ];
 
-    const normalized = fileName.replace(/\\/g, '/');
-    const nodeModulesMarker = '/node_modules/';
-    const idx = normalized.indexOf(nodeModulesMarker);
-
-    if (idx >= 0) {
-      const rel = normalized.substring(idx + nodeModulesMarker.length);
-      const parts = rel.split('/').filter(Boolean);
-      if (parts.length) {
-        const pkg = parts[0].startsWith('@') && parts.length > 1 ? `${parts[0]}/${parts[1]}` : parts[0];
-        return { id: `pkg:${sanitizeLabel(pkg)}`, label: pkg };
+    for (const [regex, label] of rules) {
+      if (regex.test(componentName)) {
+        return { id: `pkg:${sanitizeLabel(label)}`, label };
       }
-      return { id: 'pkg:node_modules', label: 'node_modules' };
     }
 
-    return { id: 'app:local', label: 'Application (local source)' };
+    return null;
+  }
+
+  function getFamilyFromType(type: any, componentName: string): FamilyInfo {
+    const fileName =
+      (type?._debugSource?.fileName as string | undefined) ||
+      (type?.__fileName as string | undefined) ||
+      (type?.fileName as string | undefined);
+
+    if (fileName) {
+      const normalized = fileName.replace(/\\/g, '/');
+      const nodeModulesMarker = '/node_modules/';
+      const idx = normalized.indexOf(nodeModulesMarker);
+
+      if (idx >= 0) {
+        const rel = normalized.substring(idx + nodeModulesMarker.length);
+        const parts = rel.split('/').filter(Boolean);
+        if (parts.length) {
+          const pkg = parts[0].startsWith('@') && parts.length > 1 ? `${parts[0]}/${parts[1]}` : parts[0];
+          return { id: `pkg:${sanitizeLabel(pkg)}`, label: pkg };
+        }
+        return { id: 'pkg:node_modules', label: 'node_modules' };
+      }
+
+      return { id: 'app:local', label: 'Application (local source)' };
+    }
+
+    const moduleName = (type?.__moduleName as string | undefined) || (type?.moduleName as string | undefined);
+    if (moduleName) {
+      return { id: `pkg:${sanitizeLabel(moduleName)}`, label: moduleName };
+    }
+
+    const fnSource = typeof type === 'function' ? Function.prototype.toString.call(type) : '';
+    const nodeModulesMatch = fnSource.match(/node_modules\/([^\/]+(?:\/[^\/]+)?)/);
+    if (nodeModulesMatch?.[1]) {
+      const raw = nodeModulesMatch[1].replace(/\\/g, '/');
+      const parts = raw.split('/');
+      const pkg = parts[0].startsWith('@') && parts[1] ? `${parts[0]}/${parts[1]}` : parts[0];
+      return { id: `pkg:${sanitizeLabel(pkg)}`, label: pkg };
+    }
+
+    const byName = inferFamilyFromName(componentName);
+    if (byName) {
+      return byName;
+    }
+
+    return { id: 'app:runtime', label: 'Application (runtime)' };
   }
 
   function getReactHook(): any {
@@ -191,7 +233,7 @@
           const hostElement = findHostNode(current.child);
           if (hostElement) {
             const componentType = getTypeFromFiber(current);
-            const family = getFamilyFromType(componentType);
+            const family = getFamilyFromType(componentType, name);
             const id = `${name}-${acc.counter++}`;
             const selector = hostElement.tagName.toLowerCase();
             const rect = hostElement.getBoundingClientRect();
@@ -398,7 +440,7 @@
     ctx.font = '12px Inter, Segoe UI, sans-serif';
     const textWidth = ctx.measureText(text).width + 8;
     const boxX = state.labelPosition === 'topRight' ? x + Math.max(0, width - textWidth) : x;
-    const boxY = y;
+    const boxY = y + 4;
     ctx.fillStyle = color;
     ctx.fillRect(boxX, boxY, textWidth, 16);
     ctx.fillStyle = '#ffffff';
