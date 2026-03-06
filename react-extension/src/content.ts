@@ -8,6 +8,7 @@
     stateNode?: any;
     child?: FiberNode | null;
     sibling?: FiberNode | null;
+    return?: FiberNode | null;
   }
 
   interface TreeNode {
@@ -73,9 +74,13 @@
     canvas: null as HTMLCanvasElement | null
   };
 
-  function isReactAvailable(): boolean {
-    const hook = (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__;
-    return Boolean(hook?.renderers?.size);
+  function getReactHook(): any {
+    return (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__;
+  }
+
+  function isReactHookPresent(): boolean {
+    const hook = getReactHook();
+    return Boolean(hook?.supportsFiber);
   }
 
   function getNameFromFiber(fiber: FiberNode): string | null {
@@ -184,21 +189,78 @@
     }
   }
 
-  function getRoots(): any[] {
-    const hook = (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__;
+  function normalizeRootFiber(node: FiberNode | null | undefined): FiberNode | null {
+    let current = node || null;
+    while (current?.return) {
+      current = current.return;
+    }
+    return current;
+  }
+
+  function getRootsFromHook(): FiberNode[] {
+    const hook = getReactHook();
     if (!hook?.renderers?.size) return [];
 
-    const roots: any[] = [];
+    const roots: FiberNode[] = [];
     hook.renderers.forEach((_: unknown, id: number) => {
-      const rendererRoots = hook.getFiberRoots(id);
-      if (rendererRoots?.size) rendererRoots.forEach((root: any) => roots.push(root));
+      const rendererRoots = hook.getFiberRoots?.(id);
+      if (rendererRoots?.size) {
+        rendererRoots.forEach((root: any) => {
+          const rootFiber = root?.current as FiberNode;
+          if (rootFiber) roots.push(rootFiber);
+        });
+      }
     });
 
     return roots;
   }
 
+  function getReactFiberFromElement(el: Element): FiberNode | null {
+    const anyEl = el as any;
+    const keys = Object.keys(anyEl);
+
+    for (const key of keys) {
+      if (key.startsWith('__reactContainer$')) {
+        const container = anyEl[key];
+        if (container?.current) return container.current as FiberNode;
+      }
+
+      if (key.startsWith('__reactFiber$')) {
+        return anyEl[key] as FiberNode;
+      }
+    }
+
+    return null;
+  }
+
+  function getRootsFromDom(): FiberNode[] {
+    const roots: FiberNode[] = [];
+    const seen = new Set<FiberNode>();
+    const allElements = document.querySelectorAll('*');
+
+    allElements.forEach(el => {
+      const foundFiber = getReactFiberFromElement(el);
+      const rootFiber = normalizeRootFiber(foundFiber);
+      if (rootFiber && !seen.has(rootFiber)) {
+        seen.add(rootFiber);
+        roots.push(rootFiber);
+      }
+    });
+
+    return roots;
+  }
+
+  function getAllRoots(): FiberNode[] {
+    const rootsFromHook = getRootsFromHook();
+    if (rootsFromHook.length) return rootsFromHook;
+    return getRootsFromDom();
+  }
+
   function findReactComponents() {
-    if (!isReactAvailable()) {
+    const hookPresent = isReactHookPresent();
+    const roots = getAllRoots();
+
+    if (!hookPresent && !roots.length) {
       return { isReact: false, prefixes: [], components: [], root: { id: 'root', name: 'Root', children: [], detail: null } };
     }
 
@@ -211,9 +273,9 @@
 
     const rootTree: TreeNode = { id: 'root', name: 'Root', children: [], detail: null };
 
-    getRoots().forEach(root => {
-      const fiberRoot = root.current as FiberNode;
-      if (fiberRoot?.child) traverseFiber(fiberRoot.child, rootTree, acc, 0);
+    roots.forEach(rootFiber => {
+      const startFiber = rootFiber?.child ? rootFiber.child : rootFiber;
+      if (startFiber) traverseFiber(startFiber, rootTree, acc, 0);
     });
 
     state.nodes = acc.nodes;
