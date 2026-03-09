@@ -107,7 +107,9 @@
       [/^(Fa|Hi|Io|Md|Ai|Bi|Bs|Ri|Tb|Pi)[A-Z]/, 'react-icons'],
       [/^Router|^Route|^Link|^NavLink|^Outlet/, 'react-router'],
       [/^Formik|^Field|^ErrorMessage/, 'formik'],
-      [/^Query|^Mutation|^Hydration|^ReactQuery/, '@tanstack/react-query']
+      [/^Query|^Mutation|^Hydration|^ReactQuery/, '@tanstack/react-query'],
+      [/^(Card|CardBody|Heading|Separator)$/,'@george-labs.com/design-system'],
+      [/^George[A-Z]/,'@george-labs.com/design-system']
     ];
 
     for (const [regex, label] of rules) {
@@ -149,6 +151,11 @@
     }
 
     const fnSource = typeof type === 'function' ? Function.prototype.toString.call(type) : '';
+
+    if (/@george-labs\.com\/design-system|george-labs/i.test(fnSource)) {
+      return { id: 'pkg:@george-labs.com/design-system', label: '@george-labs.com/design-system' };
+    }
+
     const nodeModulesMatch = fnSource.match(/node_modules\/([^\/]+(?:\/[^\/]+)?)/);
     if (nodeModulesMatch?.[1]) {
       const raw = nodeModulesMatch[1].replace(/\\/g, '/');
@@ -438,13 +445,16 @@
   function drawLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, width: number, color: string): void {
     ctx.save();
     ctx.font = '12px Inter, Segoe UI, sans-serif';
-    const textWidth = ctx.measureText(text).width + 8;
+    ctx.textBaseline = 'middle';
+    const textPaddingX = 4;
+    const boxHeight = 16;
+    const textWidth = ctx.measureText(text).width + textPaddingX * 2;
     const boxX = state.labelPosition === 'topRight' ? x + Math.max(0, width - textWidth) : x;
-    const boxY = y + 4;
+    const boxY = y + 2;
     ctx.fillStyle = color;
-    ctx.fillRect(boxX, boxY, textWidth, 16);
+    ctx.fillRect(boxX, boxY, textWidth, boxHeight);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(text, boxX + 4, boxY + 2);
+    ctx.fillText(text, boxX + textPaddingX, boxY + boxHeight / 2);
     ctx.restore();
   }
 
