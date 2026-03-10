@@ -63,6 +63,21 @@
           <div id="componentList" class="component-list"></div>
         </div>
 
+
+
+        <div>
+          <div class="section-title">
+            <h3>Interaktivní strom vybrané komponenty</h3>
+            <div class="graph-actions">
+              <button type="button" id="zoomOut">−</button>
+              <button type="button" id="zoomIn">+</button>
+              <button type="button" id="zoomReset">Reset</button>
+            </div>
+          </div>
+          <div id="treeGraphViewport" class="graph-viewport">
+            <svg id="treeGraph" class="graph-canvas"></svg>
+          </div>
+        </div>
         <div>
           <h3>Mermaid diagram</h3>
           <textarea id="mermaid" rows="12" readonly></textarea>

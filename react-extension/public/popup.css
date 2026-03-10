@@ -173,3 +173,38 @@ textarea {
   color: #a9bcff;
   font-size: 11px;
 }
+
+
+.graph-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.graph-actions button {
+  border: 1px solid #44558f;
+  background: #1a2446;
+  color: #e7ecff;
+  border-radius: 8px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.graph-viewport {
+  border: 1px solid #324377;
+  background: #0e1733;
+  border-radius: 12px;
+  height: 280px;
+  overflow: hidden;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.graph-canvas:active {
+  cursor: grabbing;
+}
