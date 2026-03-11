@@ -18,7 +18,8 @@
 
 body {
   margin: 0;
-  width: 520px;
+  width: 620px;
+  min-height: 860px;
   background: radial-gradient(circle at top right, #1b2552, #0b1020 60%);
   color: var(--text);
   font: 13px/1.4 'Roboto', 'Segoe UI', sans-serif;
@@ -175,36 +176,18 @@ textarea {
 }
 
 
-.graph-actions {
-  display: inline-flex;
-  gap: 6px;
+
+.open-graph-wrap {
+  margin-top: 10px;
 }
 
-.graph-actions button {
-  border: 1px solid #44558f;
-  background: #1a2446;
-  color: #e7ecff;
-  border-radius: 8px;
-  padding: 2px 8px;
-  cursor: pointer;
-}
-
-.graph-viewport {
-  border: 1px solid #324377;
-  background: #0e1733;
-  border-radius: 12px;
-  height: 280px;
-  overflow: hidden;
-}
-
-.graph-canvas {
+.open-graph-wrap button {
   width: 100%;
-  height: 100%;
-  display: block;
-  touch-action: none;
-  cursor: grab;
-}
-
-.graph-canvas:active {
-  cursor: grabbing;
+  border: 1px solid #4a5da5;
+  background: linear-gradient(135deg, #243673, #18264f);
+  color: #f0f5ff;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 600;
+  cursor: pointer;
 }

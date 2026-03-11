@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React Outliner Graph</title>
+    <link rel="stylesheet" href="graph.css" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <h1>React Outliner — Strom vybrané komponenty</h1>
+      <div class="actions">
+        <button id="fullZoomOut" type="button">−</button>
+        <button id="fullZoomIn" type="button">+</button>
+        <button id="fullZoomReset" type="button">Reset</button>
+        <button id="reloadGraph" type="button">Načíst znovu</button>
+      </div>
+    </header>
+
+    <div class="status" id="status">Načítám graf…</div>
+
+    <main class="canvas-wrap">
+      <svg id="fullTreeGraph" class="full-graph"></svg>
+    </main>
+
+    <script src="js/graph-view.js"></script>
+  </body>
+</html>

@@ -45,15 +45,7 @@ const state = {
   labelPosition: 'topLeft' as 'topLeft' | 'topRight',
   coverEnabled: false,
   previewComponentName: null as string | null,
-  selectedMermaidRootKey: '',
-  graph: {
-    scale: 1,
-    tx: 20,
-    ty: 20,
-    dragging: false,
-    dragStartX: 0,
-    dragStartY: 0
-  }
+  selectedMermaidRootKey: ''
 };
 
 const byName = (a: ComponentItem, b: ComponentItem) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -110,10 +102,15 @@ function getCurrentGraphRoot(): TreeNode | null {
   return findMermaidRoot(state.root, state.selectedMermaidRootKey) || state.root;
 }
 
-function updateMermaid(): void {
-  const mermaidRoot = getCurrentGraphRoot();
-  if (!mermaidRoot) return;
-  ($('mermaid') as HTMLTextAreaElement).value = buildMermaid(mermaidRoot);
+async function persistGraphSnapshot(): Promise<void> {
+  const root = getCurrentGraphRoot();
+  await chrome.storage.local.set({
+    reactOutlinerGraphSnapshot: {
+      root,
+      selectedMermaidRootKey: state.selectedMermaidRootKey,
+      savedAt: Date.now()
+    }
+  });
 }
 
 function buildMermaid(node: TreeNode): string {
@@ -138,152 +135,11 @@ function buildMermaid(node: TreeNode): string {
   return lines.join('\n');
 }
 
-function renderTreeGraph(): void {
-  const root = getCurrentGraphRoot();
-  const svg = $('treeGraph') as unknown as SVGSVGElement;
-  const viewport = $('treeGraphViewport');
-
-  if (!root) {
-    viewport.classList.add('hidden');
-    return;
-  }
-
-  viewport.classList.remove('hidden');
-  svg.innerHTML = '';
-
-  const H_GAP = 180;
-  const V_GAP = 88;
-  const NODE_W = 148;
-  const NODE_H = 38;
-
-  const nodes: Array<{ n: TreeNode; x: number; y: number }> = [];
-  const edges: Array<{ from: { x: number; y: number }; to: { x: number; y: number } }> = [];
-  let leafIndex = 0;
-
-  function layout(node: TreeNode, depth: number): { x: number; y: number } {
-    const childPoints = node.children.map(child => layout(child, depth + 1));
-    const y = depth * V_GAP;
-    let x: number;
-
-    if (!childPoints.length) {
-      x = leafIndex * H_GAP;
-      leafIndex += 1;
-    } else {
-      x = childPoints.reduce((acc, p) => acc + p.x, 0) / childPoints.length;
-      childPoints.forEach(cp => {
-        edges.push({ from: { x, y }, to: cp });
-      });
-    }
-
-    const point = { x, y };
-    nodes.push({ n: node, x, y });
-    return point;
-  }
-
-  layout(root, 0);
-
-  const maxX = Math.max(...nodes.map(n => n.x), 0) + NODE_W;
-  const maxY = Math.max(...nodes.map(n => n.y), 0) + NODE_H;
-  svg.setAttribute('viewBox', `0 0 ${maxX + 80} ${maxY + 80}`);
-
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  g.setAttribute('id', 'graphLayer');
-  svg.appendChild(g);
-
-  edges.forEach(edge => {
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    const sx = edge.from.x + NODE_W / 2;
-    const sy = edge.from.y + NODE_H;
-    const tx = edge.to.x + NODE_W / 2;
-    const ty = edge.to.y;
-    const cy = (sy + ty) / 2;
-    path.setAttribute('d', `M ${sx} ${sy} C ${sx} ${cy}, ${tx} ${cy}, ${tx} ${ty}`);
-    path.setAttribute('stroke', '#4b5b9a');
-    path.setAttribute('stroke-width', '1.5');
-    path.setAttribute('fill', 'none');
-    g.appendChild(path);
-  });
-
-  nodes.forEach(({ n, x, y }) => {
-    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', String(x));
-    rect.setAttribute('y', String(y));
-    rect.setAttribute('width', String(NODE_W));
-    rect.setAttribute('height', String(NODE_H));
-    rect.setAttribute('rx', '10');
-    rect.setAttribute('fill', n.detail?.memoized ? '#2e1065' : '#1f2a4f');
-    rect.setAttribute('stroke', n.detail?.memoized ? '#a78bfa' : '#40508b');
-    rect.setAttribute('stroke-width', '1.5');
-
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', String(x + NODE_W / 2));
-    text.setAttribute('y', String(y + NODE_H / 2 + 4));
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('fill', '#e8edff');
-    text.setAttribute('font-size', '12');
-    text.setAttribute('font-family', 'Roboto, Segoe UI, sans-serif');
-    text.textContent = n.name.length > 22 ? `${n.name.slice(0, 21)}…` : n.name;
-
-    group.append(rect, text);
-    g.appendChild(group);
-  });
-
-  applyGraphTransform();
-}
-
-function applyGraphTransform(): void {
-  const graphLayer = document.getElementById('graphLayer');
-  if (!graphLayer) return;
-  graphLayer.setAttribute('transform', `translate(${state.graph.tx} ${state.graph.ty}) scale(${state.graph.scale})`);
-}
-
-function setupGraphInteractions(): void {
-  const svg = $('treeGraph') as unknown as SVGSVGElement;
-
-  svg.addEventListener('wheel', event => {
-    event.preventDefault();
-    const nextScale = event.deltaY < 0 ? state.graph.scale * 1.08 : state.graph.scale / 1.08;
-    state.graph.scale = Math.max(0.4, Math.min(2.8, nextScale));
-    applyGraphTransform();
-  });
-
-  svg.addEventListener('pointerdown', event => {
-    state.graph.dragging = true;
-    state.graph.dragStartX = event.clientX - state.graph.tx;
-    state.graph.dragStartY = event.clientY - state.graph.ty;
-    svg.setPointerCapture(event.pointerId);
-  });
-
-  svg.addEventListener('pointermove', event => {
-    if (!state.graph.dragging) return;
-    state.graph.tx = event.clientX - state.graph.dragStartX;
-    state.graph.ty = event.clientY - state.graph.dragStartY;
-    applyGraphTransform();
-  });
-
-  svg.addEventListener('pointerup', event => {
-    state.graph.dragging = false;
-    svg.releasePointerCapture(event.pointerId);
-  });
-
-  $('zoomIn').addEventListener('click', () => {
-    state.graph.scale = Math.min(2.8, state.graph.scale * 1.15);
-    applyGraphTransform();
-  });
-
-  $('zoomOut').addEventListener('click', () => {
-    state.graph.scale = Math.max(0.4, state.graph.scale / 1.15);
-    applyGraphTransform();
-  });
-
-  $('zoomReset').addEventListener('click', () => {
-    state.graph.scale = 1;
-    state.graph.tx = 20;
-    state.graph.ty = 20;
-    applyGraphTransform();
-  });
+async function updateMermaidAndGraphSnapshot(): Promise<void> {
+  const mermaidRoot = getCurrentGraphRoot();
+  if (!mermaidRoot) return;
+  ($('mermaid') as HTMLTextAreaElement).value = buildMermaid(mermaidRoot);
+  await persistGraphSnapshot();
 }
 
 function createFamilyRow(family: FamilyItem): HTMLElement {
@@ -339,8 +195,7 @@ function createComponentRow(component: ComponentItem): HTMLElement {
   radio.addEventListener('change', () => {
     if (radio.checked) {
       state.selectedMermaidRootKey = componentKey(component);
-      updateMermaid();
-      renderTreeGraph();
+      updateMermaidAndGraphSnapshot();
     }
   });
 
@@ -420,6 +275,11 @@ async function syncToPage(): Promise<void> {
   });
 }
 
+function openFullscreenGraph(): void {
+  const url = chrome.runtime.getURL('graph.html');
+  window.open(url, '_blank', 'width=1600,height=900');
+}
+
 function wireEvents(): void {
   ($('componentFilter') as HTMLInputElement).addEventListener('input', event => {
     state.filter = (event.target as HTMLInputElement).value;
@@ -463,11 +323,14 @@ function wireEvents(): void {
     state.coverEnabled = Boolean((event.target as HTMLInputElement).checked);
     syncToPage();
   });
+
+  $('openGraphWindow').addEventListener('click', () => {
+    openFullscreenGraph();
+  });
 }
 
 async function init(): Promise<void> {
   wireEvents();
-  setupGraphInteractions();
 
   const [saved, result] = await Promise.all([
     chrome.storage.local.get(['reactOutlinerCoverEnabled', 'reactOutlinerLabelPosition', 'reactOutlinerMermaidRoot']),
@@ -506,8 +369,7 @@ async function init(): Promise<void> {
 
   renderFamilies();
   renderComponents();
-  updateMermaid();
-  renderTreeGraph();
+  await updateMermaidAndGraphSnapshot();
   $('controls').classList.remove('hidden');
 
   await syncToPage();
@@ -516,3 +378,6 @@ async function init(): Promise<void> {
 init().catch(err => {
   $('error').textContent = `Nepodařilo se načíst data: ${err?.message || String(err)}`;
 });
+
+
+export {};

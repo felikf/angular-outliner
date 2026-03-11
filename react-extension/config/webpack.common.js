@@ -7,7 +7,8 @@ module.exports = {
   entry: {
     content: path.join(rootDir, 'src/content.ts'),
     'react-tracer': path.join(rootDir, 'src/react-tracer.ts'),
-    popup: path.join(rootDir, 'src/popup.ts')
+    popup: path.join(rootDir, 'src/popup.ts'),
+    'graph-view': path.join(rootDir, 'src/graph-view.ts')
   },
   output: {
     path: path.join(rootDir, 'dist/js'),
