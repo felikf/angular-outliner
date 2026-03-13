@@ -27,7 +27,8 @@ module.exports = {
         use: {
           loader: 'ts-loader',
           options: {
-            configFile: path.join(rootDir, 'tsconfig.json')
+            configFile: path.join(rootDir, 'tsconfig.json'),
+            transpileOnly: true
           }
         },
         exclude: /node_modules/

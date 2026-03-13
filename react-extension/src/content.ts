@@ -37,3 +37,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
   return true;
 });
+
+
+window.addEventListener('message', event => {
+  if (event.source !== window) return;
+
+  const data = event.data;
+  if (!data || data.type !== 'react_tracer_event') return;
+
+  log('Forwarding tracer event to extension runtime', data.payload);
+  chrome.runtime.sendMessage({
+    type: 'reactInspectorEvent',
+    payload: data.payload
+  });
+});

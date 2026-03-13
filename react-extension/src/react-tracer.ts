@@ -59,6 +59,7 @@
     textPosition: 'topLeft' | 'topRight';
     coverEnabled: boolean;
     previewComponentName?: string | null;
+    inspectModeEnabled?: boolean;
   }
 
   interface FamilyInfo {
@@ -82,7 +83,9 @@
     labelPosition: 'topLeft' as 'topLeft' | 'topRight',
     coverEnabled: false,
     canvas: null as HTMLCanvasElement | null,
-    previewComponentName: null as string | null
+    previewComponentName: null as string | null,
+    hoveredPageComponentKey: null as string | null,
+    inspectModeEnabled: false
   };
 
   const LOG_PREFIX = '[react-outliner/page]';
@@ -483,10 +486,11 @@
         const familyRule = familyMap.get(node.familyId);
         const componentRule = componentMap.get(`${node.familyId}::${node.name}`);
         const previewMatches = state.previewComponentName && node.name === state.previewComponentName;
+        const hoveredMatches = state.hoveredPageComponentKey === `${node.familyId}::${node.name}`;
 
-        if (!familyRule?.enabled && !componentRule?.enabled && !previewMatches) return;
+        if (!familyRule?.enabled && !componentRule?.enabled && !previewMatches && !hoveredMatches) return;
 
-        const color = previewMatches
+        const color = previewMatches || hoveredMatches
           ? '#22d3ee'
           : componentRule?.enabled
             ? componentRule.color
@@ -495,7 +499,7 @@
         const rect = node.rect;
 
         ctx.strokeStyle = color;
-        ctx.lineWidth = previewMatches ? 2.5 : 1.5;
+        ctx.lineWidth = previewMatches || hoveredMatches ? 2.5 : 1.5;
         ctx.strokeRect(rect.left, rect.top, rect.width, rect.height);
 
         drawLabel(ctx, node.name, rect.left, rect.top, rect.width, color);
@@ -508,8 +512,69 @@
     state.labelPosition = payload.textPosition || 'topLeft';
     state.coverEnabled = Boolean(payload.coverEnabled);
     state.previewComponentName = payload.previewComponentName || null;
+    state.inspectModeEnabled = Boolean(payload.inspectModeEnabled);
+    if (!state.inspectModeEnabled) {
+      state.hoveredPageComponentKey = null;
+    }
     drawOverlay();
     return { ok: true };
+  }
+
+
+  function findTopNodeAtPoint(x: number, y: number): OverlayNode | null {
+    let found: OverlayNode | null = null;
+
+    state.nodes.forEach(node => {
+      if (x >= node.rect.left && x <= node.rect.right && y >= node.rect.top && y <= node.rect.bottom) {
+        found = found ? (found.level > node.level ? found : node) : node;
+      }
+    });
+
+    return found;
+  }
+
+  function emitInspectorEvent(kind: 'hover' | 'select', node: OverlayNode | null): void {
+    window.postMessage(
+      {
+        type: 'react_tracer_event',
+        payload: node
+          ? {
+              kind,
+              name: node.name,
+              familyId: node.familyId,
+              familyLabel: node.familyLabel
+            }
+          : { kind, name: null, familyId: null, familyLabel: null }
+      },
+      '*'
+    );
+  }
+
+  function onPagePointerMove(event: MouseEvent): void {
+    if (!state.inspectModeEnabled) return;
+
+    const found = findTopNodeAtPoint(event.clientX, event.clientY);
+    const key = found ? `${found.familyId}::${found.name}` : null;
+
+    if (state.hoveredPageComponentKey !== key) {
+      state.hoveredPageComponentKey = key;
+      drawOverlay();
+      emitInspectorEvent('hover', found);
+    }
+  }
+
+  function onPageClick(event: MouseEvent): void {
+    if (!state.inspectModeEnabled) return;
+
+    const found = findTopNodeAtPoint(event.clientX, event.clientY);
+    if (!found) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    state.hoveredPageComponentKey = `${found.familyId}::${found.name}`;
+    drawOverlay();
+    emitInspectorEvent('select', found);
   }
 
   const HANDLERS = {
@@ -558,6 +623,8 @@
   window.addEventListener('message', handleMessage);
   window.addEventListener('scroll', drawOverlay, { passive: true });
   window.addEventListener('resize', drawOverlay);
+  window.addEventListener('mousemove', onPagePointerMove, true);
+  window.addEventListener('click', onPageClick, true);
 
   log('React tracer initialized', { url: location.href, hookPresent: isReactHookPresent() });
 })();

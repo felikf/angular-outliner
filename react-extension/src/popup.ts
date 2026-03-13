@@ -34,6 +34,13 @@ interface FindResult {
   root: TreeNode;
 }
 
+interface InspectorEventPayload {
+  kind: 'hover' | 'select';
+  name: string | null;
+  familyId: string | null;
+  familyLabel: string | null;
+}
+
 const COLORS = ['#60a5fa', '#a78bfa', '#34d399', '#f472b6', '#f59e0b', '#22d3ee', '#fb7185'];
 
 const state = {
@@ -45,7 +52,8 @@ const state = {
   labelPosition: 'topLeft' as 'topLeft' | 'topRight',
   coverEnabled: false,
   previewComponentName: null as string | null,
-  selectedMermaidRootKey: ''
+  selectedMermaidRootKey: '',
+  inspectModeEnabled: false
 };
 
 const byName = (a: ComponentItem, b: ComponentItem) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -136,10 +144,20 @@ function buildMermaid(node: TreeNode): string {
 }
 
 async function updateMermaidAndGraphSnapshot(): Promise<void> {
-  const mermaidRoot = getCurrentGraphRoot();
-  if (!mermaidRoot) return;
-  ($('mermaid') as HTMLTextAreaElement).value = buildMermaid(mermaidRoot);
+  const root = getCurrentGraphRoot();
+  if (!root) return;
+  ($('mermaid') as HTMLTextAreaElement).value = buildMermaid(root);
   await persistGraphSnapshot();
+}
+
+function scrollToComponentRow(component: Pick<ComponentItem, 'familyId' | 'name'>): void {
+  const key = componentKey(component);
+  const row = $('componentList').querySelector(`[data-component-key="${CSS.escape(key)}"]`) as HTMLElement | null;
+  if (!row) return;
+
+  row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  row.classList.add('row--flash');
+  setTimeout(() => row.classList.remove('row--flash'), 700);
 }
 
 function createFamilyRow(family: FamilyItem): HTMLElement {
@@ -177,6 +195,7 @@ function createFamilyRow(family: FamilyItem): HTMLElement {
 function createComponentRow(component: ComponentItem): HTMLElement {
   const row = document.createElement('div');
   row.className = 'row row-component';
+  row.dataset.componentKey = componentKey(component);
 
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
@@ -259,11 +278,35 @@ function renderComponents(): void {
   updateSummary();
 }
 
+function handleInspectorEvent(payload: InspectorEventPayload): void {
+  if (!state.inspectModeEnabled) return;
+  if (!payload?.name || !payload?.familyId) return;
+
+  const component = state.components.find(c => c.name === payload.name && c.familyId === payload.familyId);
+  if (!component) return;
+
+  if (payload.kind === 'hover') {
+    state.previewComponentName = component.name;
+    syncToPage();
+    return;
+  }
+
+  if (payload.kind === 'select') {
+    component.enabled = true;
+    state.previewComponentName = component.name;
+    renderComponents();
+    updateSummary();
+    scrollToComponentRow(component);
+    syncToPage();
+  }
+}
+
 async function syncToPage(): Promise<void> {
   await chrome.storage.local.set({
     reactOutlinerCoverEnabled: state.coverEnabled,
     reactOutlinerLabelPosition: state.labelPosition,
-    reactOutlinerMermaidRoot: state.selectedMermaidRootKey
+    reactOutlinerMermaidRoot: state.selectedMermaidRootKey,
+    reactOutlinerInspectModeEnabled: state.inspectModeEnabled
   });
 
   await send('togglePrefix', {
@@ -271,7 +314,8 @@ async function syncToPage(): Promise<void> {
     components: state.components,
     textPosition: state.labelPosition,
     coverEnabled: state.coverEnabled,
-    previewComponentName: state.previewComponentName
+    previewComponentName: state.previewComponentName,
+    inspectModeEnabled: state.inspectModeEnabled
   });
 }
 
@@ -324,6 +368,14 @@ function wireEvents(): void {
     syncToPage();
   });
 
+  ($('inspectFromPageCbx') as HTMLInputElement).addEventListener('change', event => {
+    state.inspectModeEnabled = Boolean((event.target as HTMLInputElement).checked);
+    if (!state.inspectModeEnabled) {
+      state.previewComponentName = null;
+    }
+    syncToPage();
+  });
+
   $('openGraphWindow').addEventListener('click', () => {
     openFullscreenGraph();
   });
@@ -333,7 +385,12 @@ async function init(): Promise<void> {
   wireEvents();
 
   const [saved, result] = await Promise.all([
-    chrome.storage.local.get(['reactOutlinerCoverEnabled', 'reactOutlinerLabelPosition', 'reactOutlinerMermaidRoot']),
+    chrome.storage.local.get([
+      'reactOutlinerCoverEnabled',
+      'reactOutlinerLabelPosition',
+      'reactOutlinerMermaidRoot',
+      'reactOutlinerInspectModeEnabled'
+    ]),
     send<FindResult>('findReactComponents')
   ]);
 
@@ -344,9 +401,11 @@ async function init(): Promise<void> {
 
   state.coverEnabled = Boolean(saved.reactOutlinerCoverEnabled);
   state.labelPosition = (saved.reactOutlinerLabelPosition as 'topLeft' | 'topRight') || 'topLeft';
+  state.inspectModeEnabled = Boolean(saved.reactOutlinerInspectModeEnabled);
 
   ($('coverEnabled') as HTMLInputElement).checked = state.coverEnabled;
   ($('labelPosition') as HTMLSelectElement).value = state.labelPosition;
+  ($('inspectFromPageCbx') as HTMLInputElement).checked = state.inspectModeEnabled;
 
   state.root = result.root;
   state.families = result.families.map((family, index) => ({
@@ -372,12 +431,17 @@ async function init(): Promise<void> {
   await updateMermaidAndGraphSnapshot();
   $('controls').classList.remove('hidden');
 
+  chrome.runtime.onMessage.addListener(message => {
+    if (message?.type === 'reactInspectorEvent') {
+      handleInspectorEvent(message.payload as InspectorEventPayload);
+    }
+  });
+
   await syncToPage();
 }
 
 init().catch(err => {
   $('error').textContent = `Nepodařilo se načíst data: ${err?.message || String(err)}`;
 });
-
 
 export {};
