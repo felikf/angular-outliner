@@ -53,7 +53,8 @@ const state = {
   coverEnabled: false,
   previewComponentName: null as string | null,
   selectedMermaidRootKey: '',
-  inspectModeEnabled: false
+  inspectModeEnabled: false,
+  projectOnlyEnabled: false
 };
 
 const byName = (a: ComponentItem, b: ComponentItem) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -88,6 +89,22 @@ function componentKey(component: Pick<ComponentItem, 'familyId' | 'name'>): stri
   return `${component.familyId}::${component.name}`;
 }
 
+
+function isProjectFamilyId(familyId: string): boolean {
+  return familyId.startsWith('app:');
+}
+
+function isComponentVisible(component: ComponentItem): boolean {
+  const matcher = state.filter.trim().toLowerCase();
+  const matcherOk = !matcher || component.name.toLowerCase().includes(matcher) || component.familyLabel.toLowerCase().includes(matcher);
+  const projectOk = !state.projectOnlyEnabled || isProjectFamilyId(component.familyId);
+  return matcherOk && projectOk;
+}
+
+function getVisibleComponents(): ComponentItem[] {
+  return state.components.filter(isComponentVisible);
+}
+
 function findMermaidRoot(node: TreeNode, selectedKey: string): TreeNode | null {
   if (!selectedKey) return null;
   const [selectedFamilyId, ...nameParts] = selectedKey.split('::');
@@ -107,14 +124,42 @@ function findMermaidRoot(node: TreeNode, selectedKey: string): TreeNode | null {
 
 function getCurrentGraphRoot(): TreeNode | null {
   if (!state.root) return null;
-  return findMermaidRoot(state.root, state.selectedMermaidRootKey) || state.root;
+
+  const candidate = findMermaidRoot(state.root, state.selectedMermaidRootKey) || state.root;
+  if (!state.projectOnlyEnabled) return candidate;
+
+  if (candidate.detail?.familyId && isProjectFamilyId(candidate.detail.familyId)) {
+    return candidate;
+  }
+
+  const firstProject = state.components.find(component => isProjectFamilyId(component.familyId));
+  if (!firstProject) return candidate;
+
+  state.selectedMermaidRootKey = componentKey(firstProject);
+  return findMermaidRoot(state.root, state.selectedMermaidRootKey) || candidate;
+}
+
+function buildProjectOnlyTree(node: TreeNode): TreeNode | null {
+  const children = node.children
+    .map(child => buildProjectOnlyTree(child))
+    .filter((child): child is TreeNode => Boolean(child));
+
+  const isProjectNode = Boolean(node.detail?.familyId && isProjectFamilyId(node.detail.familyId));
+  if (!isProjectNode && !children.length) return null;
+
+  return {
+    ...node,
+    children
+  };
 }
 
 async function persistGraphSnapshot(): Promise<void> {
   const root = getCurrentGraphRoot();
+  const snapshotRoot = state.projectOnlyEnabled && root ? buildProjectOnlyTree(root) || root : root;
+
   await chrome.storage.local.set({
     reactOutlinerGraphSnapshot: {
-      root,
+      root: snapshotRoot,
       selectedMermaidRootKey: state.selectedMermaidRootKey,
       savedAt: Date.now()
     }
@@ -146,7 +191,9 @@ function buildMermaid(node: TreeNode): string {
 async function updateMermaidAndGraphSnapshot(): Promise<void> {
   const root = getCurrentGraphRoot();
   if (!root) return;
-  ($('mermaid') as HTMLTextAreaElement).value = buildMermaid(root);
+
+  const displayRoot = state.projectOnlyEnabled ? buildProjectOnlyTree(root) || root : root;
+  ($('mermaid') as HTMLTextAreaElement).value = buildMermaid(displayRoot);
   await persistGraphSnapshot();
 }
 
@@ -247,9 +294,10 @@ function createComponentRow(component: ComponentItem): HTMLElement {
 }
 
 function updateSummary(): void {
-  const enabledComponents = state.components.filter(c => c.enabled).length;
-  const enabledFamilies = state.families.filter(f => f.enabled).length;
-  $('summary').textContent = `${state.components.length} komponent, aktivní: ${enabledComponents} | rodiny: ${enabledFamilies}`;
+  const visibleComponents = getVisibleComponents();
+  const enabledComponents = state.components.filter(c => c.enabled && (!state.projectOnlyEnabled || isProjectFamilyId(c.familyId))).length;
+  const enabledFamilies = state.families.filter(f => f.enabled && (!state.projectOnlyEnabled || isProjectFamilyId(f.id))).length;
+  $('summary').textContent = `${visibleComponents.length}/${state.components.length} komponent, aktivní: ${enabledComponents} | rodiny: ${enabledFamilies}`;
 }
 
 function renderFamilies(): void {
@@ -257,6 +305,7 @@ function renderFamilies(): void {
   host.innerHTML = '';
 
   state.families
+    .filter(family => !state.projectOnlyEnabled || isProjectFamilyId(family.id))
     .slice()
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
     .forEach(family => host.append(createFamilyRow(family)));
@@ -266,13 +315,8 @@ function renderComponents(): void {
   const host = $('componentList');
   host.innerHTML = '';
 
-  const matcher = state.filter.trim().toLowerCase();
   const sorted = [...state.components].sort(state.sort === 'count' ? byCount : byName);
-
-  const filtered = sorted.filter(component => {
-    if (!matcher) return true;
-    return component.name.toLowerCase().includes(matcher) || component.familyLabel.toLowerCase().includes(matcher);
-  });
+  const filtered = sorted.filter(isComponentVisible);
 
   filtered.forEach(component => host.append(createComponentRow(component)));
   updateSummary();
@@ -306,12 +350,21 @@ async function syncToPage(): Promise<void> {
     reactOutlinerCoverEnabled: state.coverEnabled,
     reactOutlinerLabelPosition: state.labelPosition,
     reactOutlinerMermaidRoot: state.selectedMermaidRootKey,
-    reactOutlinerInspectModeEnabled: state.inspectModeEnabled
+    reactOutlinerInspectModeEnabled: state.inspectModeEnabled,
+    reactOutlinerProjectOnlyEnabled: state.projectOnlyEnabled
   });
 
+  const families = state.projectOnlyEnabled
+    ? state.families.map(f => (isProjectFamilyId(f.id) ? f : { ...f, enabled: false }))
+    : state.families;
+
+  const components = state.projectOnlyEnabled
+    ? state.components.map(c => (isProjectFamilyId(c.familyId) ? c : { ...c, enabled: false }))
+    : state.components;
+
   await send('togglePrefix', {
-    families: state.families,
-    components: state.components,
+    families,
+    components,
     textPosition: state.labelPosition,
     coverEnabled: state.coverEnabled,
     previewComponentName: state.previewComponentName,
@@ -346,10 +399,9 @@ function wireEvents(): void {
 
   ($('selectAll') as HTMLInputElement).addEventListener('change', event => {
     const shouldEnable = Boolean((event.target as HTMLInputElement).checked);
-    const matcher = state.filter.trim().toLowerCase();
 
     state.components.forEach(component => {
-      if (!matcher || component.name.toLowerCase().includes(matcher) || component.familyLabel.toLowerCase().includes(matcher)) {
+      if (isComponentVisible(component)) {
         component.enabled = shouldEnable;
       }
     });
@@ -376,6 +428,24 @@ function wireEvents(): void {
     syncToPage();
   });
 
+
+  ($('projectOnlyCbx') as HTMLInputElement).addEventListener('change', event => {
+    state.projectOnlyEnabled = Boolean((event.target as HTMLInputElement).checked);
+
+    if (state.projectOnlyEnabled && state.selectedMermaidRootKey) {
+      const selected = state.components.find(c => componentKey(c) === state.selectedMermaidRootKey);
+      if (selected && !isProjectFamilyId(selected.familyId)) {
+        const firstProject = state.components.find(c => isProjectFamilyId(c.familyId));
+        state.selectedMermaidRootKey = firstProject ? componentKey(firstProject) : '';
+      }
+    }
+
+    renderFamilies();
+    renderComponents();
+    updateMermaidAndGraphSnapshot();
+    syncToPage();
+  });
+
   $('openGraphWindow').addEventListener('click', () => {
     openFullscreenGraph();
   });
@@ -389,7 +459,8 @@ async function init(): Promise<void> {
       'reactOutlinerCoverEnabled',
       'reactOutlinerLabelPosition',
       'reactOutlinerMermaidRoot',
-      'reactOutlinerInspectModeEnabled'
+      'reactOutlinerInspectModeEnabled',
+      'reactOutlinerProjectOnlyEnabled'
     ]),
     send<FindResult>('findReactComponents')
   ]);
@@ -402,10 +473,12 @@ async function init(): Promise<void> {
   state.coverEnabled = Boolean(saved.reactOutlinerCoverEnabled);
   state.labelPosition = (saved.reactOutlinerLabelPosition as 'topLeft' | 'topRight') || 'topLeft';
   state.inspectModeEnabled = Boolean(saved.reactOutlinerInspectModeEnabled);
+  state.projectOnlyEnabled = Boolean(saved.reactOutlinerProjectOnlyEnabled);
 
   ($('coverEnabled') as HTMLInputElement).checked = state.coverEnabled;
   ($('labelPosition') as HTMLSelectElement).value = state.labelPosition;
   ($('inspectFromPageCbx') as HTMLInputElement).checked = state.inspectModeEnabled;
+  ($('projectOnlyCbx') as HTMLInputElement).checked = state.projectOnlyEnabled;
 
   state.root = result.root;
   state.families = result.families.map((family, index) => ({
