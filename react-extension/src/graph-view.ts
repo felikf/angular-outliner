@@ -15,14 +15,15 @@ interface Point {
 const MIN_SCALE = 0.08;
 const MAX_SCALE = 12;
 const ZOOM_FACTOR = 1.16;
+const PAN_SPEED = 1.7;
 
 const state = {
   scale: 1,
-  tx: 40,
-  ty: 40,
   dragging: false,
   dragStartX: 0,
   dragStartY: 0,
+  dragStartScrollLeft: 0,
+  dragStartScrollTop: 0,
   root: null as TreeNode | null,
   contentWidth: 0,
   contentHeight: 0
@@ -30,10 +31,14 @@ const state = {
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
-function applyTransform(): void {
-  const layer = document.getElementById('graphLayer');
-  if (!layer) return;
-  layer.setAttribute('transform', `translate(${state.tx} ${state.ty}) scale(${state.scale})`);
+function getCanvasWrap(): HTMLElement {
+  return $('graphScrollArea');
+}
+
+function applyScale(): void {
+  const svg = $('fullTreeGraph') as unknown as SVGSVGElement;
+  svg.style.width = `${Math.max(state.contentWidth * state.scale, 1)}px`;
+  svg.style.height = `${Math.max(state.contentHeight * state.scale, 1)}px`;
   $('status').textContent = `Zoom ${(state.scale * 100).toFixed(0)} %`;
 }
 
@@ -41,39 +46,40 @@ function clampScale(value: number): number {
   return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
 }
 
-function clientToWorld(point: Point): Point {
-  return {
-    x: (point.x - state.tx) / state.scale,
-    y: (point.y - state.ty) / state.scale
-  };
+function scrollToWorldPoint(world: Point, viewportPoint: Point): void {
+  const wrap = getCanvasWrap();
+  wrap.scrollLeft = world.x * state.scale - viewportPoint.x;
+  wrap.scrollTop = world.y * state.scale - viewportPoint.y;
 }
 
-function zoomAt(client: Point, desiredScale: number): void {
-  const nextScale = clampScale(desiredScale);
-  const before = clientToWorld(client);
+function zoomAt(viewportPoint: Point, desiredScale: number): void {
+  const wrap = getCanvasWrap();
+  const world = {
+    x: (wrap.scrollLeft + viewportPoint.x) / state.scale,
+    y: (wrap.scrollTop + viewportPoint.y) / state.scale
+  };
 
-  state.scale = nextScale;
-  state.tx = client.x - before.x * state.scale;
-  state.ty = client.y - before.y * state.scale;
-  applyTransform();
+  state.scale = clampScale(desiredScale);
+  applyScale();
+  scrollToWorldPoint(world, viewportPoint);
 }
 
 function fitToViewport(padding = 50): void {
-  const svg = $('fullTreeGraph') as unknown as SVGSVGElement;
-  const svgRect = svg.getBoundingClientRect();
-  const usableWidth = Math.max(svgRect.width - padding * 2, 100);
-  const usableHeight = Math.max(svgRect.height - padding * 2, 100);
+  const wrap = getCanvasWrap();
+  const usableWidth = Math.max(wrap.clientWidth - padding * 2, 100);
+  const usableHeight = Math.max(wrap.clientHeight - padding * 2, 100);
 
   const scaleX = usableWidth / Math.max(state.contentWidth, 1);
   const scaleY = usableHeight / Math.max(state.contentHeight, 1);
   state.scale = clampScale(Math.min(scaleX, scaleY));
+  applyScale();
 
-  const contentScaledWidth = state.contentWidth * state.scale;
-  const contentScaledHeight = state.contentHeight * state.scale;
-
-  state.tx = (svgRect.width - contentScaledWidth) / 2;
-  state.ty = (svgRect.height - contentScaledHeight) / 2;
-  applyTransform();
+  const centeredViewport = {
+    x: Math.max((wrap.clientWidth - state.contentWidth * state.scale) / 2, 0),
+    y: Math.max((wrap.clientHeight - state.contentHeight * state.scale) / 2, 0)
+  };
+  const worldTopLeft = { x: 0, y: 0 };
+  scrollToWorldPoint(worldTopLeft, { x: -centeredViewport.x, y: -centeredViewport.y });
 }
 
 function renderGraph(root: TreeNode): void {
@@ -165,52 +171,53 @@ function renderGraph(root: TreeNode): void {
 
 function setupInteractions(): void {
   const svg = $('fullTreeGraph') as unknown as SVGSVGElement;
+  const wrap = getCanvasWrap();
 
-  svg.addEventListener('wheel', event => {
+  wrap.addEventListener('wheel', event => {
+    if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
 
-    const point = { x: event.clientX, y: event.clientY };
+    const rect = wrap.getBoundingClientRect();
+    const viewportPoint = { x: event.clientX - rect.left, y: event.clientY - rect.top };
     const next = event.deltaY < 0 ? state.scale * ZOOM_FACTOR : state.scale / ZOOM_FACTOR;
-    zoomAt(point, next);
+    zoomAt(viewportPoint, next);
   }, { passive: false });
 
   svg.addEventListener('pointerdown', event => {
     if (event.button !== 0 && event.button !== 1) return;
     state.dragging = true;
-    state.dragStartX = event.clientX - state.tx;
-    state.dragStartY = event.clientY - state.ty;
+    state.dragStartX = event.clientX;
+    state.dragStartY = event.clientY;
+    state.dragStartScrollLeft = wrap.scrollLeft;
+    state.dragStartScrollTop = wrap.scrollTop;
     svg.setPointerCapture(event.pointerId);
   });
 
   svg.addEventListener('pointermove', event => {
     if (!state.dragging) return;
-    state.tx = event.clientX - state.dragStartX;
-    state.ty = event.clientY - state.dragStartY;
-    applyTransform();
+    const dx = (event.clientX - state.dragStartX) * PAN_SPEED;
+    const dy = (event.clientY - state.dragStartY) * PAN_SPEED;
+
+    wrap.scrollLeft = state.dragStartScrollLeft - dx;
+    wrap.scrollTop = state.dragStartScrollTop - dy;
   });
 
-  svg.addEventListener('pointerup', event => {
+  const stopDragging = (event: PointerEvent): void => {
     state.dragging = false;
     if (svg.hasPointerCapture(event.pointerId)) {
       svg.releasePointerCapture(event.pointerId);
     }
-  });
+  };
 
-  svg.addEventListener('pointercancel', event => {
-    state.dragging = false;
-    if (svg.hasPointerCapture(event.pointerId)) {
-      svg.releasePointerCapture(event.pointerId);
-    }
-  });
+  svg.addEventListener('pointerup', stopDragging);
+  svg.addEventListener('pointercancel', stopDragging);
 
   $('fullZoomIn').addEventListener('click', () => {
-    const rect = svg.getBoundingClientRect();
-    zoomAt({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }, state.scale * ZOOM_FACTOR);
+    zoomAt({ x: wrap.clientWidth / 2, y: wrap.clientHeight / 2 }, state.scale * ZOOM_FACTOR);
   });
 
   $('fullZoomOut').addEventListener('click', () => {
-    const rect = svg.getBoundingClientRect();
-    zoomAt({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }, state.scale / ZOOM_FACTOR);
+    zoomAt({ x: wrap.clientWidth / 2, y: wrap.clientHeight / 2 }, state.scale / ZOOM_FACTOR);
   });
 
   $('fullZoomReset').addEventListener('click', () => {

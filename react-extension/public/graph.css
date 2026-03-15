@@ -45,15 +45,33 @@ body {
 
 .canvas-wrap {
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
+  scrollbar-gutter: stable both-edges;
+  border-top: 1px solid rgba(80, 104, 173, 0.2);
+}
+
+.canvas-wrap::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.canvas-wrap::-webkit-scrollbar-track {
+  background: #121a35;
+}
+
+.canvas-wrap::-webkit-scrollbar-thumb {
+  background: #364b8d;
+  border-radius: 8px;
+  border: 2px solid #121a35;
 }
 
 .full-graph {
-  width: 100%;
-  height: 100%;
   display: block;
   touch-action: none;
   cursor: grab;
+  user-select: none;
 }
 
-.full-graph:active { cursor: grabbing; }
+.full-graph:active {
+  cursor: grabbing;
+}
