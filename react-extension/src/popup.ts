@@ -54,6 +54,7 @@ const state = {
   previewComponentName: null as string | null,
   selectedMermaidRootKey: '',
   inspectModeEnabled: false,
+  inspectProjectOnlyEnabled: false,
   projectOnlyEnabled: false
 };
 
@@ -325,6 +326,7 @@ function renderComponents(): void {
 function handleInspectorEvent(payload: InspectorEventPayload): void {
   if (!state.inspectModeEnabled) return;
   if (!payload?.name || !payload?.familyId) return;
+  if (state.inspectProjectOnlyEnabled && !isProjectFamilyId(payload.familyId)) return;
 
   const component = state.components.find(c => c.name === payload.name && c.familyId === payload.familyId);
   if (!component) return;
@@ -351,6 +353,7 @@ async function syncToPage(): Promise<void> {
     reactOutlinerLabelPosition: state.labelPosition,
     reactOutlinerMermaidRoot: state.selectedMermaidRootKey,
     reactOutlinerInspectModeEnabled: state.inspectModeEnabled,
+    reactOutlinerInspectProjectOnlyEnabled: state.inspectProjectOnlyEnabled,
     reactOutlinerProjectOnlyEnabled: state.projectOnlyEnabled
   });
 
@@ -368,7 +371,8 @@ async function syncToPage(): Promise<void> {
     textPosition: state.labelPosition,
     coverEnabled: state.coverEnabled,
     previewComponentName: state.previewComponentName,
-    inspectModeEnabled: state.inspectModeEnabled
+    inspectModeEnabled: state.inspectModeEnabled,
+    inspectProjectOnlyEnabled: state.inspectProjectOnlyEnabled
   });
 }
 
@@ -428,6 +432,11 @@ function wireEvents(): void {
     syncToPage();
   });
 
+  ($('inspectProjectOnlyCbx') as HTMLInputElement).addEventListener('change', event => {
+    state.inspectProjectOnlyEnabled = Boolean((event.target as HTMLInputElement).checked);
+    syncToPage();
+  });
+
 
   ($('projectOnlyCbx') as HTMLInputElement).addEventListener('change', event => {
     state.projectOnlyEnabled = Boolean((event.target as HTMLInputElement).checked);
@@ -460,6 +469,7 @@ async function init(): Promise<void> {
       'reactOutlinerLabelPosition',
       'reactOutlinerMermaidRoot',
       'reactOutlinerInspectModeEnabled',
+      'reactOutlinerInspectProjectOnlyEnabled',
       'reactOutlinerProjectOnlyEnabled'
     ]),
     send<FindResult>('findReactComponents')
@@ -473,11 +483,13 @@ async function init(): Promise<void> {
   state.coverEnabled = Boolean(saved.reactOutlinerCoverEnabled);
   state.labelPosition = (saved.reactOutlinerLabelPosition as 'topLeft' | 'topRight') || 'topLeft';
   state.inspectModeEnabled = Boolean(saved.reactOutlinerInspectModeEnabled);
+  state.inspectProjectOnlyEnabled = Boolean(saved.reactOutlinerInspectProjectOnlyEnabled);
   state.projectOnlyEnabled = Boolean(saved.reactOutlinerProjectOnlyEnabled);
 
   ($('coverEnabled') as HTMLInputElement).checked = state.coverEnabled;
   ($('labelPosition') as HTMLSelectElement).value = state.labelPosition;
   ($('inspectFromPageCbx') as HTMLInputElement).checked = state.inspectModeEnabled;
+  ($('inspectProjectOnlyCbx') as HTMLInputElement).checked = state.inspectProjectOnlyEnabled;
   ($('projectOnlyCbx') as HTMLInputElement).checked = state.projectOnlyEnabled;
 
   state.root = result.root;

@@ -60,6 +60,7 @@
     coverEnabled: boolean;
     previewComponentName?: string | null;
     inspectModeEnabled?: boolean;
+    inspectProjectOnlyEnabled?: boolean;
   }
 
   interface FamilyInfo {
@@ -85,7 +86,8 @@
     canvas: null as HTMLCanvasElement | null,
     previewComponentName: null as string | null,
     hoveredPageComponentKey: null as string | null,
-    inspectModeEnabled: false
+    inspectModeEnabled: false,
+    inspectProjectOnlyEnabled: false
   };
 
   const LOG_PREFIX = '[react-outliner/page]';
@@ -96,6 +98,10 @@
 
   function sanitizeLabel(value: string): string {
     return value.replace(/[^a-zA-Z0-9@._/-]/g, '_');
+  }
+
+  function isProjectFamilyId(familyId: string): boolean {
+    return familyId.startsWith('app:');
   }
 
   function getTypeFromFiber(fiber: FiberNode): any {
@@ -513,7 +519,8 @@
     state.coverEnabled = Boolean(payload.coverEnabled);
     state.previewComponentName = payload.previewComponentName || null;
     state.inspectModeEnabled = Boolean(payload.inspectModeEnabled);
-    if (!state.inspectModeEnabled) {
+    state.inspectProjectOnlyEnabled = Boolean(payload.inspectProjectOnlyEnabled);
+    if (!state.inspectModeEnabled || state.inspectProjectOnlyEnabled) {
       state.hoveredPageComponentKey = null;
     }
     drawOverlay();
@@ -525,6 +532,7 @@
     let found: OverlayNode | null = null;
 
     state.nodes.forEach(node => {
+      if (state.inspectProjectOnlyEnabled && !isProjectFamilyId(node.familyId)) return;
       if (x >= node.rect.left && x <= node.rect.right && y >= node.rect.top && y <= node.rect.bottom) {
         found = found ? (found.level > node.level ? found : node) : node;
       }
