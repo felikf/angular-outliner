@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React Outliner</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <h1>React Outliner</h1>
+        <p>Přehled React komponent (funkce/třídy), hranice v UI a Mermaid graf stromu.</p>
+      </header>
+
+      <p id="error" class="error" role="alert"></p>
+
+      <section id="controls" class="panel hidden">
+        <div class="section-title">
+          <h2>Nastavení zvýraznění</h2>
+          <span id="summary" class="summary"></span>
+        </div>
+
+        <div class="options-grid">
+          <label class="field">
+            <span>Filtr komponent / rodin</span>
+            <input id="componentFilter" type="search" placeholder="např. LoanForm nebo @mui" />
+          </label>
+
+          <label class="field field--inline">
+            <input id="selectAll" type="checkbox" />
+            <span>Vybrat vše podle filtru</span>
+          </label>
+
+          <label class="field">
+            <span>Pozice labelu</span>
+            <select id="labelPosition">
+              <option value="topLeft">Vlevo nahoře</option>
+              <option value="topRight">Vpravo nahoře</option>
+            </select>
+          </label>
+
+          <label class="field field--inline">
+            <input id="coverEnabled" type="checkbox" />
+            <span>Překrýt stránku white cover</span>
+          </label>
+
+
+          <label class="field field--inline">
+            <input id="inspectFromPageCbx" type="checkbox" />
+            <span>Režim výběru ze stránky (hover + klik)</span>
+          </label>
+
+          <label class="field field--inline">
+            <input id="inspectProjectOnlyCbx" type="checkbox" />
+            <span>Ve výběru ze stránky jen projektové komponenty</span>
+          </label>
+
+          <label class="field field--inline">
+            <input id="projectOnlyCbx" type="checkbox" />
+            <span>Pouze projektové komponenty</span>
+          </label>
+        </div>
+
+        <div>
+          <h3>Rodiny komponent (projekt / knihovny)</h3>
+          <div id="familyList" class="chips"></div>
+        </div>
+
+        <div>
+          <div class="section-title">
+            <h3>Komponenty (jen React jména)</h3>
+            <small>Checkbox = zvýraznění, radio = root Mermaid grafu</small>
+            <div class="sort">
+              <button id="sortByName" class="sort-btn sort-btn--active" type="button">Název</button>
+              <button id="sortByCount" class="sort-btn" type="button">Počet</button>
+            </div>
+          </div>
+          <div id="componentList" class="component-list"></div>
+          <div class="open-graph-wrap">
+            <button id="openGraphWindow" type="button">Otevřít graf přes celou obrazovku</button>
+          </div>
+        </div>
+
+        <div>
+          <h3>Mermaid diagram</h3>
+          <textarea id="mermaid" rows="12" readonly></textarea>
+        </div>
+      </section>
+    </main>
+
+    <script src="js/popup.js"></script>
+  </body>
+</html>

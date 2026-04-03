@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "React Component Outliner",
+  "description": "Vizualizuje React komponenty, zvýrazní hranice a vygeneruje Mermaid diagram stromu komponent.",
+  "version": "1.0.0",
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*"
+      ],
+      "js": [
+        "js/content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*"
+      ],
+      "js": [
+        "js/react-tracer.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "action": {
+    "default_title": "React Outliner",
+    "default_popup": "popup.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "js/react-tracer.js"
+      ],
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*"
+      ]
+    }
+  ]
+}
