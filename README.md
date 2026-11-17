@@ -1,102 +1,128 @@
-## Angular component outliner
+<div align="center">
+  <img src="./meta/icon.png" alt="Angular Outliner logo" width="88">
 
-Are you tired of trying to navigate the complex component hierarchy of your Angular application? Look no further than Angular Outliner!
+  <h1>Angular Outliner</h1>
 
-This browser extension allows you to easily visualize the component tree of your Angular application, making it simple to understand the structure and relationships of your components. With just one click, you can activate the extension and see a clear representation of your application's components in a sidebar.
+  <p><strong>See the Angular components behind your screen.</strong></p>
 
-When it comes to code review, Angular Outliner can also be a powerful tool. It allows developers to quickly understand the component hierarchy of the new code increment, making it easier to identify potential issues, bugs and conflicts with the existing codebase. This makes code reviews more efficient and effective, saving you time and effort.
+  <p>A Chrome extension that draws component boundaries directly on your running app—so you can explore unfamiliar code, inspect layouts, and explain changes visually.</p>
 
-Don't let a complex component hierarchy slow you down. Try Angular Outliner today and see how it can make understanding and working with your Angular application a breeze, and make your code reviews more efficient.
+  <p>
+    <a href="#quick-start">Get started</a> ·
+    <a href="https://youtu.be/NUdmr3CRHuE">Watch the demo</a> ·
+    <a href="#features">Explore features</a> ·
+    <a href="https://github.com/felikf/angular-outliner/issues">Report an issue</a>
+  </p>
 
-____
+  <p>
+    <img src="https://img.shields.io/badge/browser-Chrome-4285F4?logo=googlechrome&logoColor=white" alt="Browser: Chrome">
+    <img src="https://img.shields.io/badge/Angular-Ivy-DD0031?logo=angular&logoColor=white" alt="Angular Ivy">
+    <img src="https://img.shields.io/badge/mode-development-0A7B83" alt="Requires Angular development mode">
+  </p>
+</div>
 
-Chrome extension that helps to visualise application components by drawing a border around them.
+![Angular Outliner showing component boundaries and labels in an Angular application](./meta/custom-example.png)
 
-You can choose between component namespaces defined by prefix (e.g. `app` - application components, `mat` - angular material components, etc.) or specific components.
+## Understand your UI at a glance
 
+A screen tells you what an application looks like. Angular Outliner helps you see how it is built.
 
-There are a few options to choose from: class name or selector and label position.
+Highlight your application components, isolate a UI library, or find every instance of a specific component. Connect what you see in the browser with the component names you work with in your editor.
 
-It is possible to filter by component name.
-A number in brackets after the component name shows the number of instances of the given component.
+- **Get oriented in a new project.** Discover which components make up the current page.
+- **Inspect component boundaries.** See where components start, end, and overlap.
+- **Give code reviews visual context.** Add an annotated screenshot or component diagram to your pull request.
+- **Explain architecture to your team.** Turn the current page's component hierarchy into a Mermaid flowchart.
 
-##### Angular application
-Must be started in [development mode](https://stackoverflow.com/a/67686819/4420532) (`ng` is available in chrome console).
+## Features
 
-##### Examples
-![alt text](./meta/custom-example.png "Example Tour Of Heroes")
-![alt text](./meta/starter-example.png "Example Angular Stater Application")
+| Feature | What it helps you do |
+| --- | --- |
+| **Component outlines** | Draw colored borders and labels around components on the page. |
+| **Namespace selection** | Highlight groups by selector prefix, such as `app` for application components or `mat` for Angular Material. |
+| **Individual component selection** | Focus on the component types relevant to your task. |
+| **Search and sorting** | Filter by class name or selector, then sort by name or instance count. Matching components are automatically selected. |
+| **Instance counts** | See how many instances of each component type are present on the current page. |
+| **Change detection indicators** | Identify components using `OnPush` or the default change detection strategy. |
+| **Display controls** | Customize outline colors, switch between class names and selectors, and move labels to the top left or top right. |
+| **Mermaid diagrams** | Copy a component hierarchy as Markdown, with `OnPush` components highlighted. |
 
-Chrome Extension [YouTube](https://youtu.be/NUdmr3CRHuE)
+### See it in action
 
-#### Mermaid
-The extension also generates a Mermaid Flowchart diagram of the components. It highlights the components with OnPush strategy.
+[Watch the video walkthrough on YouTube →](https://youtu.be/NUdmr3CRHuE)
 
-[Mermaid](https://mermaid-js.github.io/mermaid/#/flowchart?id=graph)
-```mermaid
-flowchart TD
-classDef onPushClass fill:#095,stroke:#333,stroke-width:4px;
-AppComponent-0[AppComponent]-->MatCard-1[MatCard]
- MatCard-1[MatCard]-->MatCardHeader-2[MatCardHeader]
- MatCard-1[MatCard]-->MatButton-3[MatButton]
- MatCard-1[MatCard]-->MatButton-4[MatButton]
-AppComponent-0[AppComponent]-->MatCard-5[MatCard]
- MatCard-5[MatCard]-->MatCardHeader-6[MatCardHeader]
-  MatCardHeader-6[MatCardHeader]-->MatIcon-7[MatIcon]
- MatCard-5[MatCard]-->MatList-8[MatList]
-  MatList-8[MatList]-->MatListItem-9[MatListItem]
-  MatList-8[MatList]-->MatListItem-10[MatListItem]
-  MatList-8[MatList]-->MatListItem-11[MatListItem]
- MatCard-5[MatCard]-->MatList-12[MatList]
-  MatList-12[MatList]-->MatListItem-13[MatListItem]
-  MatList-12[MatList]-->MatListItem-14[MatListItem]
-AppComponent-0[AppComponent]-->MatCard-15[MatCard]
- MatCard-15[MatCard]-->MatCardHeader-16[MatCardHeader]
-  MatCardHeader-16[MatCardHeader]-->MatIcon-17[MatIcon]
- MatCard-15[MatCard]-->MatSlider-18[MatSlider]
- MatCard-15[MatCard]-->MatSlider-19[MatSlider]
- MatCard-15[MatCard]-->MatSlider-20[MatSlider]
- MatCard-15[MatCard]-->MatProgressBar-21[MatProgressBar]
-AppComponent-0[AppComponent]-->MatCard-22[MatCard]
- MatCard-22[MatCard]-->ParentComponent-23[ParentComponent]
-  ParentComponent-23[ParentComponent]-->ChildComponent-24[ChildComponent]
-  ParentComponent-23[ParentComponent]-->ChildComponent-25[ChildComponent]
-  ParentComponent-23[ParentComponent]-->ChildComponent-26[ChildComponent]
-class MatCard-1,MatCardHeader-2,MatButton-3,MatButton-4,MatCard-5,MatCardHeader-6,MatIcon-7,MatList-8,MatListItem-9,MatListItem-10,MatListItem-11,MatList-12,MatListItem-13,MatListItem-14,MatCard-15,MatCardHeader-16,MatIcon-17,MatSlider-18,MatSlider-19,MatSlider-20,MatProgressBar-21,MatCard-22 onPushClass
+![Angular Outliner highlighting components in a starter application](./meta/starter-example.png)
+
+## Quick start
+
+### Requirements
+
+- **Google Chrome** with Developer mode enabled on the extensions page.
+- **Node.js and npm** to build the extension from source.
+- An **Angular application using Ivy**, running in **development mode**, with Angular's `ng` debug API available in the browser console.
+- An application served from **`http://localhost` or `https://localhost`**. The manifest matches localhost across ports, including the usual `4200`.
+
+The extension targets Angular 10+ development applications. Compatibility with every newer Angular release is not guaranteed; it depends on Angular's debug APIs and internals.
+
+### 1. Build the extension
+
+```bash
+git clone https://github.com/felikf/angular-outliner.git
+cd angular-outliner
+npm install
+npm run build
 ```
 
-## Installation
+### 2. Load it into Chrome
 
-- Clone the repository
-- Run `npm install`
-- Run `npm run start` 
-- Open `chrome://extensions/` in your browser and drag and drop the `dist` folder.
+1. Open `chrome://extensions/`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select the repository's **`dist`** folder.
+4. Pin **Angular Component Overview**—the extension's name in Chrome—to your toolbar.
 
+### 3. Explore your application
 
-##### Description
-The extension is intended for Angular developers. It works in Angular development mode on port 4200. The rendering engine has to be IVY.
+1. Start your Angular application in development mode and open its localhost URL.
+2. Refresh the application tab after installing the extension.
+3. Click the extension icon to open the popup.
+4. Turn on **Enable tracing**, then select a namespace or individual components.
+5. Use the filter to narrow your selection and adjust labels or colors as needed.
 
-Once installed, it should be pinned for easy access.
+**Try this first:** select `app` to see your application's components, then switch to `mat` to inspect Angular Material components.
 
-Let's say I'm a new developer on a project and I want to see what components are on the page and how they are organised. The extension
-extension allows me to highlight components and instantly see their boundaries.
+## Share your component architecture
 
-Or maybe I am preparing a pull request and want to illustrate the solution. I can take a screenshot of the page with the components involved and attach it to the pull request.
+The popup includes a generated **Mermaid** snippet for the current page. Copy it into a Markdown file, GitHub pull request, or another Mermaid-enabled viewer to share the hierarchy with your team.
 
-The components can be highlighted by prefix - say I want to see all material components - they have the prefix MAT.
+For example, a small component tree could look like this:
 
-Or maybe I am interested in custom application components - they have the prefix APP.
-Some components may overlap.
+```mermaid
+flowchart TD
+  AppComponent --> DashboardComponent
+  DashboardComponent --> SummaryCardComponent
+  DashboardComponent --> ActivityListComponent
+  ActivityListComponent --> ActivityItemComponent
+  classDef onPushClass fill:#095,color:#fff,stroke:#333,stroke-width:2px;
+  class SummaryCardComponent,ActivityItemComponent onPushClass;
+```
 
-The other way to highlight a component is to select individual components by name. For example, I want to see ....
+Highlighted nodes represent components using `OnPush` change detection.
 
-I can toggle the table to show component selectors instead of names.
+## Tips and troubleshooting
 
-If there are many components on the page, I can use filters. Found components are automatically highlighted.
+### No components appear
 
-The extension also shows the number of component instances and the change detection strategy.
+- Confirm that the application is running on **localhost**. The bundled manifest does not match `127.0.0.1`, custom hostnames, or remote sites.
+- Check that Angular is running in **development mode** and that `ng` is available in the browser console.
+- Refresh the application tab after loading or reloading the extension, then reopen the popup.
+- Make sure you have enabled tracing and selected a namespace or component.
 
-For better experience it is recommended to use display block on all components. I can set default display option for new components in angular.json when using CLI.
+### Outlines look collapsed or overlap
+
+Component host elements without a useful layout box can produce unexpected outlines. Try the popup's **Set display block for all unset components** option. This changes component display behavior and may affect the page layout.
+
+For new components, you can also configure Angular CLI to generate block-level hosts:
+
 ```json
 {
   "schematics": {
@@ -107,12 +133,36 @@ For better experience it is recommended to use display block on all components. 
 }
 ```
 
-#### Tags
-\#Angular \#ChromeExtension
+Nested components may naturally overlap. Select fewer components or change the label position to make the view easier to read.
 
-<!--
-The source code can be found on github.
--->
+## Development
 
+Run the extension build in watch mode:
 
+```bash
+npm run start
+```
 
+After changes are built, reload the extension at `chrome://extensions/` and refresh the application tab.
+
+| Command | Purpose |
+| --- | --- |
+| `npm run start` | Build the Angular extension in development watch mode. |
+| `npm run build` | Create a production build in `dist`. |
+| `npm run clean` | Remove the Angular extension's build output. |
+
+### React prototype
+
+This repository also contains a separate React extension prototype. See its [setup and usage guide](./react-extension/README.md).
+
+## Feedback and contributions
+
+Found a bug or have an idea? [Open an issue](https://github.com/felikf/angular-outliner/issues) with your Angular and Chrome versions, steps to reproduce, and a screenshot when useful.
+
+Pull requests are welcome. For larger changes, open an issue first to discuss the approach.
+
+**If Angular Outliner helps you understand your app, [give the repository a star](https://github.com/felikf/angular-outliner) and share it with your team.**
+
+---
+
+Created by [Felix Fatka](https://github.com/felikf). License: MIT, as declared in [package.json](./package.json).
