@@ -8,6 +8,7 @@
   <p>A Chrome extension that draws component boundaries directly on your running app—so you can explore unfamiliar code, inspect layouts, and explain changes visually.</p>
 
   <p>
+    <a href="https://chromewebstore.google.com/detail/angular-component-overvie/ffaclkhkellkeknodafdgeaapdniahhh?pli=1"><strong>Install from Chrome Web Store</strong></a> ·
     <a href="#quick-start">Get started</a> ·
     <a href="https://youtu.be/NUdmr3CRHuE">Watch the demo</a> ·
     <a href="#features">Explore features</a> ·
@@ -57,14 +58,22 @@ Highlight your application components, isolate a UI library, or find every insta
 
 ### Requirements
 
-- **Google Chrome** with Developer mode enabled on the extensions page.
-- **Node.js and npm** to build the extension from source.
+- **Google Chrome**. Enable Developer mode on the extensions page only if installing from source.
+- **Node.js and npm** only if building the extension from source.
 - An **Angular application using Ivy**, running in **development mode**, with Angular's `ng` debug API available in the browser console.
 - An application served from **`http://localhost` or `https://localhost`**. The manifest matches localhost across ports, including the usual `4200`.
 
 The extension targets Angular 10+ development applications. Compatibility with every newer Angular release is not guaranteed; it depends on Angular's debug APIs and internals.
 
-### 1. Build the extension
+### Install from Chrome Web Store
+
+[**Add Angular Component Overview to Chrome →**](https://chromewebstore.google.com/detail/angular-component-overvie/ffaclkhkellkeknodafdgeaapdniahhh?pli=1)
+
+Open the listing, click **Add to Chrome**, and confirm the installation. Pin **Angular Component Overview** to your toolbar, then follow [Explore your application](#explore-your-application) below.
+
+### Build from source (alternative)
+
+To build a local copy of the extension:
 
 ```bash
 git clone https://github.com/felikf/angular-outliner.git
@@ -73,14 +82,14 @@ npm install
 npm run build
 ```
 
-### 2. Load it into Chrome
+#### Load the local build into Chrome
 
 1. Open `chrome://extensions/`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked** and select the repository's **`dist`** folder.
 4. Pin **Angular Component Overview**—the extension's name in Chrome—to your toolbar.
 
-### 3. Explore your application
+### Explore your application
 
 1. Start your Angular application in development mode and open its localhost URL.
 2. Refresh the application tab after installing the extension.
